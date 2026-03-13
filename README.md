@@ -4,12 +4,11 @@ Nexus addon with **feature parity** to the desktop Pie Todo app (`pie_todo.py`).
 
 ## Features (same as desktop)
 
-- **Tasks**: Add, edit, delete, reorder (Up/Down)
+- **Tasks**: Add, edit, delete, with drag&drop sorting. 
 - **Repeat**: Daily (midnight GMT) or Weekly (Monday 07:30 GMT)
-- **Completed**: Checkbox per task; green row when “Colour” mode
-- **Options**: Show completed as “Colour” or “Hide”
-- **Resets**: Daily Reset / Weekly Reset buttons; auto-reset every 60s check
-- **Persistence**: `todos.json` in the addon folder (same JSON shape as desktop)
+- **Completed**: completed tasks can be coloured or optionally hidden until reset
+- **Resets**: Daily / Weekly tasks automatically reset at the same time as Guild Wars 2
+- **Persistence**: `todos.json` in the addon folder
 
 ## Build
 
