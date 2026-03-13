@@ -1,6 +1,6 @@
 # Pie Todo – Raidcore Nexus Addon
 
-Nexus addon with **feature parity** to the desktop Pie Todo app (`pie_todo.py`). Uses **ImGui 1.80** to match the Nexus loader.
+Nexus addon to help track your daily and weekly gameplay in Guild Wars 2.
 
 ## AI Notice
 
