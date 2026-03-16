@@ -1,6 +1,6 @@
 # Pie Todo – Raidcore Nexus Addon
 
-Nexus addon to help track your daily and weekly gameplay in Guild Wars 2.
+A Guild Wars 2 addon for [Raidcore Nexus](https://raidcore.gg/Nexus) to help track your daily and weekly gameplay in Guild Wars 2.
 
 ## AI Notice
 
@@ -8,7 +8,7 @@ This addon has been 100% created in [Windsurf](https://windsurf.com/) using Clau
 
 If an LLM creating software upsets you, then perhaps this repo isn't for you. Move on, and enjoy your day.
 
-## Features (same as desktop)
+## Features
 
 - **Tasks**: Add, edit, delete, with drag&drop sorting. 
 - **Repeat**: Daily (midnight GMT) or Weekly (Monday 07:30 GMT)
@@ -56,20 +56,7 @@ cmake --build . --config Release
 
 Or with MinGW: use `-G "MinGW Makefiles" -DCMAKE_TOOLCHAIN_FILE=...` if you have a Windows MinGW toolchain file.
 
-Copy `PieTodo.dll` (and if built with MinGW, `libwinpthread-1.dll`) into Nexus’s addons folder. Create a `PieTodo` subfolder there; `todos.json` will be created automatically.
-
-## Usage
-
-- **Open**: Default keybind `Ctrl+Shift+T` (or from Nexus addon list).
-- **Add**: Type in “Task…”, choose Daily/Weekly, click Add (or Enter).
-- **Edit/Delete**: Right-click a row → Edit or Delete.
-- **Reorder**: Use Up/Dn on each row.
-- **Options**: Completed tasks = Colour or Hide.
-
-## Data
-
-- Path: `{Nexus addon dir}/PieTodo/todos.json`
-- Format matches the desktop app so you can share the same file (e.g. copy from `~/.pie-todo/todos.json` if you use the Python app too).
+Copy `PieTodo.dll` into Nexus’s addons folder.
 
 ## License
 

@@ -421,16 +421,9 @@ static void RenderTodoWindow() {
         visibleIndices.push_back((int)i);
     }
 
-    /* Task count summary */
-    {
-        int total = (int)g.todos.size();
-        int done = 0;
-        for (const auto& t : g.todos) if (t.completed) done++;
-        ImGui::Text("%d/%d completed", done, total);
-    }
-
-    /* Task list child window */
-    if (ImGui::BeginChild("TaskList", ImVec2(-1, -1), true)) {
+    /* Task list child window (leave room for status bar) */
+    float statusBarHeight = ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y;
+    if (ImGui::BeginChild("TaskList", ImVec2(-1, -statusBarHeight), true)) {
         const float listWidth = ImGui::GetContentRegionAvail().x;
         ImVec2 winPos = ImGui::GetWindowPos();
         float winWidth = ImGui::GetWindowWidth();
@@ -653,6 +646,18 @@ static void RenderTodoWindow() {
             ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();
+    }
+
+    /* Status bar */
+    {
+        int total = (int)g.todos.size();
+        int done = 0;
+        for (const auto& t : g.todos) if (t.completed) done++;
+        char statusBuf[64];
+        snprintf(statusBuf, sizeof(statusBuf), "%d/%d completed", done, total);
+        float textW = ImGui::CalcTextSize(statusBuf).x;
+        ImGui::SetCursorPosX(ImGui::GetWindowContentRegionMax().x - textW);
+        ImGui::TextUnformatted(statusBuf);
     }
 
     /* Track window geometry (saved on unload, not every frame) */
