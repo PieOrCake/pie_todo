@@ -6,6 +6,8 @@ Nexus addon to help track your daily and weekly gameplay in Guild Wars 2.
 
 This addon has been 100% created in [Windsurf](https://windsurf.com/) using Claude. I understand that some folks have a moral, financial or political objection to creating software using an LLM. I just wanted to make a useful tool for the GW2 community, and this was the only way I could do it.
 
+If an LLM creating software upsets you, then perhaps this repo isn't for you. Move on, and enjoy your day.
+
 ## Features (same as desktop)
 
 - **Tasks**: Add, edit, delete, with drag&drop sorting. 
@@ -68,3 +70,7 @@ Copy `PieTodo.dll` (and if built with MinGW, `libwinpthread-1.dll`) into Nexusâ€
 
 - Path: `{Nexus addon dir}/PieTodo/todos.json`
 - Format matches the desktop app so you can share the same file (e.g. copy from `~/.pie-todo/todos.json` if you use the Python app too).
+
+## License
+
+This software is provided as-is, without a warranty of any kind. Use at your own risk. It might delete your files, melt your PC, burn your house down, or cause world peace. Probably not that last one, but one can hope.

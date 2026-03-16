@@ -84,6 +84,8 @@ struct AppState {
     float                 winX = 0.f, winY = 0.f;
     float                 winW = DEFAULT_WINDOW_W, winH = DEFAULT_WINDOW_H;
     bool                  winGeometryLoaded = false;
+    bool                  lockPosition      = false;
+    bool                  lockSize          = false;
 
     bool                  dirty          = false;
     double                dirtyTimestamp  = 0.0;
@@ -169,6 +171,8 @@ static void SaveTodos() {
     }
     j["todos"] = arr;
     j["completed_tasks_mode"] = (g.completedMode == CompletedMode_Hide) ? "hide" : "colour";
+    j["lock_position"] = g.lockPosition;
+    j["lock_size"] = g.lockSize;
     if (!g.lastDailyReset.empty())  j["last_daily_reset"]  = g.lastDailyReset;
     if (!g.lastWeeklyReset.empty()) j["last_weekly_reset"] = g.lastWeeklyReset;
 
@@ -214,6 +218,10 @@ static void LoadTodos() {
 
     if (j.contains("completed_tasks_mode"))
         g.completedMode = (j["completed_tasks_mode"].get<std::string>() == "hide") ? CompletedMode_Hide : CompletedMode_Colour;
+    if (j.contains("lock_position"))
+        g.lockPosition = j["lock_position"].get<bool>();
+    if (j.contains("lock_size"))
+        g.lockSize = j["lock_size"].get<bool>();
     if (j.contains("last_daily_reset"))
         g.lastDailyReset = extractDate(j["last_daily_reset"].get<std::string>());
     if (j.contains("last_weekly_reset"))
@@ -356,7 +364,10 @@ static void RenderTodoWindow() {
     } else {
         ImGui::SetNextWindowSize(ImVec2(DEFAULT_WINDOW_W, DEFAULT_WINDOW_H), ImGuiCond_FirstUseEver);
     }
-    if (!ImGui::Begin(WINDOW_NAME, &g.windowVisible, ImGuiWindowFlags_None)) {
+    ImGuiWindowFlags wflags = ImGuiWindowFlags_None;
+    if (g.lockPosition) wflags |= ImGuiWindowFlags_NoMove;
+    if (g.lockSize) wflags |= ImGuiWindowFlags_NoResize;
+    if (!ImGui::Begin(WINDOW_NAME, &g.windowVisible, wflags)) {
         ImGui::End();
         return;
     }
@@ -410,6 +421,14 @@ static void RenderTodoWindow() {
         visibleIndices.push_back((int)i);
     }
 
+    /* Task count summary */
+    {
+        int total = (int)g.todos.size();
+        int done = 0;
+        for (const auto& t : g.todos) if (t.completed) done++;
+        ImGui::Text("%d/%d completed", done, total);
+    }
+
     /* Task list child window */
     if (ImGui::BeginChild("TaskList", ImVec2(-1, -1), true)) {
         const float listWidth = ImGui::GetContentRegionAvail().x;
@@ -426,6 +445,13 @@ static void RenderTodoWindow() {
 
             /* Record row start Y for background rect */
             ImVec2 rowStartPos = ImGui::GetCursorScreenPos();
+
+            /* Alternating row background (zebra stripe on odd rows) */
+            if (vi % 2 == 1) {
+                ImVec2 zMin = ImVec2(winPos.x, rowStartPos.y);
+                ImVec2 zMax = ImVec2(winPos.x + winWidth, rowStartPos.y + ImGui::GetFrameHeightWithSpacing());
+                ImGui::GetWindowDrawList()->AddRectFilled(zMin, zMax, IM_COL32(255, 255, 255, 10));
+            }
 
             /* Full-row drag source (invisible selectable spanning available width) */
             ImGui::Selectable("##dragrow", false, ImGuiSelectableFlags_AllowItemOverlap);
@@ -446,18 +472,19 @@ static void RenderTodoWindow() {
             ImGui::SameLine(0, ROW_PADDING);
 
             /* Task text */
+            ImGui::AlignTextToFramePadding();
             ImGui::TextUnformatted(item.text.c_str());
 
             /* Repeat label right-aligned */
             ImGui::SameLine(winWidth - repeatColWidth);
+            ImGui::AlignTextToFramePadding();
             ImGui::TextUnformatted(item.repeat == Repeat_Weekly ? "Weekly" : "Daily");
 
-            /* Draw row background highlight for completed tasks (behind content) */
+            /* Draw row background highlight for completed tasks (full row height) */
             if (completed) {
-                ImVec2 rMin = ImVec2(winPos.x + ROW_PADDING, rowStartPos.y);
-                ImVec2 rMax = ImVec2(winPos.x + winWidth - ROW_PADDING, ImGui::GetItemRectMax().y);
-                ImU32 bgCol = ImGui::ColorConvertFloat4ToU32(ImVec4(0.4f, 0.9f, 0.4f, 0.35f));
-                ImGui::GetWindowDrawList()->AddRectFilled(rMin, rMax, bgCol);
+                ImVec2 rMin = ImVec2(winPos.x, rowStartPos.y);
+                ImVec2 rMax = ImVec2(winPos.x + winWidth, rowStartPos.y + ImGui::GetFrameHeightWithSpacing());
+                ImGui::GetWindowDrawList()->AddRectFilled(rMin, rMax, IM_COL32(100, 230, 100, 90));
             }
 
             /* Store full row rect for drag-drop and right-click hit test */
@@ -655,6 +682,15 @@ static void RenderOptions() {
     }
     ImGui::Spacing();
     ImGui::TextWrapped("Show completed tasks with a green row (Colour) or hide them (Hide).");
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+    if (ImGui::Checkbox("Lock window position", &g.lockPosition))
+        MarkDirty();
+    if (ImGui::Checkbox("Lock window size", &g.lockSize))
+        MarkDirty();
+    ImGui::TextWrapped("Prevent the window from being moved or resized.");
 }
 
 /* ── Addon lifecycle ───────────────────────────────────────────────────────── */
