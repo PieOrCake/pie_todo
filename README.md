@@ -2,6 +2,8 @@
 
 A Guild Wars 2 addon for [Raidcore Nexus](https://raidcore.gg/Nexus) to help track your daily and weekly gameplay in Guild Wars 2.
 
+![Main Window](images/main_window.png)
+
 ## AI Notice
 
 This addon has been 100% created in [Windsurf](https://windsurf.com/) using Claude. I understand that some folks have a moral, financial or political objection to creating software using an LLM. I just wanted to make a useful tool for the GW2 community, and this was the only way I could do it.

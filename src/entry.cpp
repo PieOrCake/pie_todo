@@ -23,6 +23,7 @@ static const char* WINDOW_NAME      = "Pie's Awesome ToDo List";
 static const char* QA_ID            = "PieTodo_qa";
 static const char* QA_ICON_ID       = "PieTodo_icon";
 static const char* QA_ICON_FILENAME = "icon\\pie-todo-paper-icon.png";
+static const char* ICON_WINDOW_NAME = "##PieTodoIcon";
 
 static constexpr float MIN_WINDOW_DIM    = 200.f;
 static constexpr float DEFAULT_WINDOW_W  = 400.f;
@@ -86,6 +87,12 @@ struct AppState {
     bool                  winGeometryLoaded = false;
     bool                  lockPosition      = false;
     bool                  lockSize          = false;
+
+    bool                  openOnLaunch      = false;
+    bool                  collapseEnabled   = false;
+    float                 collapseDelaySec  = 2.0f;
+    bool                  collapsed         = false;
+    double                lastHoverTime     = 0.0;
 
     bool                  dirty          = false;
     double                dirtyTimestamp  = 0.0;
@@ -173,6 +180,9 @@ static void SaveTodos() {
     j["completed_tasks_mode"] = (g.completedMode == CompletedMode_Hide) ? "hide" : "colour";
     j["lock_position"] = g.lockPosition;
     j["lock_size"] = g.lockSize;
+    j["open_on_launch"] = g.openOnLaunch;
+    j["collapse_enabled"] = g.collapseEnabled;
+    j["collapse_delay_sec"] = g.collapseDelaySec;
     if (!g.lastDailyReset.empty())  j["last_daily_reset"]  = g.lastDailyReset;
     if (!g.lastWeeklyReset.empty()) j["last_weekly_reset"] = g.lastWeeklyReset;
 
@@ -222,6 +232,12 @@ static void LoadTodos() {
         g.lockPosition = j["lock_position"].get<bool>();
     if (j.contains("lock_size"))
         g.lockSize = j["lock_size"].get<bool>();
+    if (j.contains("open_on_launch"))
+        g.openOnLaunch = j["open_on_launch"].get<bool>();
+    if (j.contains("collapse_enabled"))
+        g.collapseEnabled = j["collapse_enabled"].get<bool>();
+    if (j.contains("collapse_delay_sec"))
+        g.collapseDelaySec = j["collapse_delay_sec"].get<float>();
     if (j.contains("last_daily_reset"))
         g.lastDailyReset = extractDate(j["last_daily_reset"].get<std::string>());
     if (j.contains("last_weekly_reset"))
@@ -345,17 +361,54 @@ static void RenderTodoWindow() {
     if (APIDefs && APIDefs->ImguiContext)
         ImGui::SetCurrentContext((ImGuiContext*)APIDefs->ImguiContext);
 
-    if (g.pendingToggle.exchange(false, std::memory_order_acquire))
+    double now = ImGui::GetTime();
+
+    if (g.pendingToggle.exchange(false, std::memory_order_acquire)) {
         g.windowVisible = !g.windowVisible;
+        if (g.windowVisible) {
+            g.collapsed = false;
+            g.lastHoverTime = now;
+        }
+    }
     if (!g.windowVisible) return;
 
     /* Periodic reset check and dirty-flag flush */
-    double now = ImGui::GetTime();
     if (now - g.lastResetCheckTime >= RESET_CHECK_INTERVAL) {
         g.lastResetCheckTime = now;
         CheckResetTimes();
     }
     FlushIfDirty();
+
+    /* Collapsed icon mode */
+    if (g.collapseEnabled && g.collapsed) {
+        ImGui::SetNextWindowPos(ImVec2(g.winX, g.winY), ImGuiCond_Always);
+        ImGuiWindowFlags iconFlags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize
+            | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollbar
+            | ImGuiWindowFlags_NoFocusOnAppearing;
+        if (ImGui::Begin(ICON_WINDOW_NAME, nullptr, iconFlags)) {
+            Texture_t* tex = APIDefs->Textures_Get(QA_ICON_ID);
+            if (tex && tex->Resource) {
+                ImGui::Image(tex->Resource, ImVec2(32.f, 32.f));
+            }
+            int dTotal = 0, dDone = 0, wTotal = 0, wDone = 0;
+            for (const auto& t : g.todos) {
+                if (t.repeat == Repeat_Daily)  { dTotal++; if (t.completed) dDone++; }
+                else                           { wTotal++; if (t.completed) wDone++; }
+            }
+            char dBuf[32], wBuf[32];
+            snprintf(dBuf, sizeof(dBuf), "D: %d/%d", dDone, dTotal);
+            snprintf(wBuf, sizeof(wBuf), "W: %d/%d", wDone, wTotal);
+            ImGui::TextUnformatted(dBuf);
+            ImGui::TextUnformatted(wBuf);
+
+            if (ImGui::IsWindowHovered()) {
+                g.collapsed = false;
+                g.lastHoverTime = now;
+            }
+        }
+        ImGui::End();
+        return;
+    }
 
     /* Window setup */
     if (g.winGeometryLoaded) {
@@ -660,6 +713,21 @@ static void RenderTodoWindow() {
         ImGui::TextUnformatted(statusBuf);
     }
 
+    /* Collapse timer logic */
+    if (g.collapseEnabled) {
+        bool anyHovered = ImGui::IsWindowHovered(
+            ImGuiHoveredFlags_ChildWindows |
+            ImGuiHoveredFlags_AllowWhenBlockedByActiveItem |
+            ImGuiHoveredFlags_AllowWhenBlockedByPopup);
+        bool popupOpen = ImGui::IsPopupOpen("TaskContextMenu")
+            || ImGui::IsPopupOpen("Edit Todo")
+            || ImGui::IsPopupOpen("Delete Todo");
+        if (anyHovered || popupOpen)
+            g.lastHoverTime = now;
+        else if (g.lastHoverTime > 0.0 && (now - g.lastHoverTime) >= (double)g.collapseDelaySec)
+            g.collapsed = true;
+    }
+
     /* Track window geometry (saved on unload, not every frame) */
     g.winX = ImGui::GetWindowPos().x;
     g.winY = ImGui::GetWindowPos().y;
@@ -696,6 +764,30 @@ static void RenderOptions() {
     if (ImGui::Checkbox("Lock window size", &g.lockSize))
         MarkDirty();
     ImGui::TextWrapped("Prevent the window from being moved or resized.");
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+    if (ImGui::Checkbox("Open on launch", &g.openOnLaunch))
+        MarkDirty();
+    ImGui::TextWrapped("Automatically show the window when the game starts.");
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+    if (ImGui::Checkbox("Collapse to icon", &g.collapseEnabled)) {
+        if (!g.collapseEnabled) g.collapsed = false;
+        MarkDirty();
+    }
+    if (g.collapseEnabled) {
+        ImGui::SetNextItemWidth(100.f);
+        if (ImGui::InputFloat("Delay (seconds)", &g.collapseDelaySec, 0.5f, 1.0f, "%.1f")) {
+            if (g.collapseDelaySec < 0.5f) g.collapseDelaySec = 0.5f;
+            if (g.collapseDelaySec > 30.0f) g.collapseDelaySec = 30.0f;
+            MarkDirty();
+        }
+    }
+    ImGui::TextWrapped("When enabled, the window collapses to an icon after the mouse leaves. Hover the icon to expand.");
 }
 
 /* ── Addon lifecycle ───────────────────────────────────────────────────────── */
@@ -711,6 +803,12 @@ void AddonLoad(AddonAPI_t* aApi) {
 
     LoadTodos();
     LoadWindowGeometry();
+
+    if (g.openOnLaunch) {
+        g.windowVisible = true;
+        if (g.collapseEnabled)
+            g.collapsed = true;
+    }
 
     APIDefs->InputBinds_RegisterWithString(KB_TOGGLE, ProcessKeybind, "CTRL+SHIFT+T");
     APIDefs->GUI_Register(RT_Render, RenderTodoWindow);
