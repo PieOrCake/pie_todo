@@ -12,6 +12,7 @@
 #include <ctime>
 #include <atomic>
 #include <algorithm>
+#include <shellapi.h>
 
 using json = nlohmann::json;
 
@@ -35,6 +36,7 @@ static constexpr float EDIT_FIELD_WIDTH  = 300.f;
 static constexpr float WRAP_WIDTH        = 280.f;
 static constexpr double RESET_CHECK_INTERVAL = 60.0;
 static constexpr double DIRTY_SAVE_DELAY     = 2.0;
+static constexpr double FILE_POLL_INTERVAL   = 1.0;
 
 /* ── Enums ─────────────────────────────────────────────────────────────────── */
 
@@ -88,11 +90,15 @@ struct AppState {
     bool                  lockPosition      = false;
     bool                  lockSize          = false;
 
+    bool                  showQuickAccess   = true;
     bool                  openOnLaunch      = false;
     bool                  collapseEnabled   = false;
     float                 collapseDelaySec  = 2.0f;
     bool                  collapsed         = false;
     double                lastHoverTime     = 0.0;
+
+    FILETIME              lastFileWriteTime = {};
+    double                lastFilePollTime  = 0.0;
 
     bool                  dirty          = false;
     double                dirtyTimestamp  = 0.0;
@@ -155,6 +161,16 @@ static std::string TrimWhitespace(const std::string& s) {
     return s.substr(start, end - start);
 }
 
+/* ── File modification time helper ─────────────────────────────────────────── */
+
+static FILETIME GetFileModTime(const std::string& path) {
+    FILETIME ft = {};
+    WIN32_FILE_ATTRIBUTE_DATA attr;
+    if (GetFileAttributesExA(path.c_str(), GetFileExInfoStandard, &attr))
+        ft = attr.ftLastWriteTime;
+    return ft;
+}
+
 /* ── Dirty-flag save ───────────────────────────────────────────────────────── */
 
 static void MarkDirty() {
@@ -180,6 +196,7 @@ static void SaveTodos() {
     j["completed_tasks_mode"] = (g.completedMode == CompletedMode_Hide) ? "hide" : "colour";
     j["lock_position"] = g.lockPosition;
     j["lock_size"] = g.lockSize;
+    j["show_quick_access"] = g.showQuickAccess;
     j["open_on_launch"] = g.openOnLaunch;
     j["collapse_enabled"] = g.collapseEnabled;
     j["collapse_delay_sec"] = g.collapseDelaySec;
@@ -190,6 +207,9 @@ static void SaveTodos() {
     if (f) f << j.dump(2) << "\n";
 
     g.dirty = false;
+
+    /* Update stored mod time so we don't reload our own save */
+    g.lastFileWriteTime = GetFileModTime(path);
 }
 
 static void FlushIfDirty() {
@@ -232,6 +252,8 @@ static void LoadTodos() {
         g.lockPosition = j["lock_position"].get<bool>();
     if (j.contains("lock_size"))
         g.lockSize = j["lock_size"].get<bool>();
+    if (j.contains("show_quick_access"))
+        g.showQuickAccess = j["show_quick_access"].get<bool>();
     if (j.contains("open_on_launch"))
         g.openOnLaunch = j["open_on_launch"].get<bool>();
     if (j.contains("collapse_enabled"))
@@ -242,6 +264,9 @@ static void LoadTodos() {
         g.lastDailyReset = extractDate(j["last_daily_reset"].get<std::string>());
     if (j.contains("last_weekly_reset"))
         g.lastWeeklyReset = extractDate(j["last_weekly_reset"].get<std::string>());
+
+    /* Update stored mod time after loading */
+    g.lastFileWriteTime = GetFileModTime(path);
 }
 
 /* ── Window geometry ───────────────────────────────────────────────────────── */
@@ -363,6 +388,19 @@ static void RenderTodoWindow() {
 
     double now = ImGui::GetTime();
 
+    /* Poll for external file changes and flush pending saves (always, even when hidden) */
+    if (now - g.lastFilePollTime >= FILE_POLL_INTERVAL) {
+        g.lastFilePollTime = now;
+        std::string path = GetConfigPath("todos.json");
+        if (!path.empty()) {
+            FILETIME current = GetFileModTime(path);
+            if (CompareFileTime(&current, &g.lastFileWriteTime) != 0) {
+                LoadTodos();
+            }
+        }
+    }
+    FlushIfDirty();
+
     if (g.pendingToggle.exchange(false, std::memory_order_acquire)) {
         g.windowVisible = !g.windowVisible;
         if (g.windowVisible) {
@@ -372,12 +410,11 @@ static void RenderTodoWindow() {
     }
     if (!g.windowVisible) return;
 
-    /* Periodic reset check and dirty-flag flush */
+    /* Periodic reset check */
     if (now - g.lastResetCheckTime >= RESET_CHECK_INTERVAL) {
         g.lastResetCheckTime = now;
         CheckResetTimes();
     }
-    FlushIfDirty();
 
     /* Collapsed icon mode */
     if (g.collapseEnabled && g.collapsed) {
@@ -742,6 +779,15 @@ static void RenderTodoWindow() {
 static void RenderOptions() {
     if (APIDefs && APIDefs->ImguiContext)
         ImGui::SetCurrentContext((ImGuiContext*)APIDefs->ImguiContext);
+    ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.4f, 1.0f), "Pie's Awesome ToDo List");
+    if (ImGui::SmallButton("Homepage")) {
+        ShellExecuteA(NULL, "open", "https://pie.rocks.cc/", NULL, NULL, SW_SHOWNORMAL);
+    }
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Buy me a coffee!")) {
+        ShellExecuteA(NULL, "open", "https://ko-fi.com/pieorcake", NULL, NULL, SW_SHOWNORMAL);
+    }
+    ImGui::Separator();
     ImGui::Text("Completed tasks:");
     ImGui::SameLine();
     if (ImGui::RadioButton("Colour", g.completedMode == CompletedMode_Colour)) {
@@ -764,6 +810,18 @@ static void RenderOptions() {
     if (ImGui::Checkbox("Lock window size", &g.lockSize))
         MarkDirty();
     ImGui::TextWrapped("Prevent the window from being moved or resized.");
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+    if (ImGui::Checkbox("Show Quick Access icon", &g.showQuickAccess)) {
+        if (g.showQuickAccess)
+            APIDefs->QuickAccess_Add(QA_ID, QA_ICON_ID, QA_ICON_ID, KB_TOGGLE, "ToDo List");
+        else
+            APIDefs->QuickAccess_Remove(QA_ID);
+        MarkDirty();
+    }
+    ImGui::TextWrapped("Show or hide the shortcut icon in the Quick Access bar.");
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -819,7 +877,8 @@ void AddonLoad(AddonAPI_t* aApi) {
     if (dir && dir[0]) {
         std::string iconPath = std::string(dir) + "\\" + QA_ICON_FILENAME;
         APIDefs->Textures_GetOrCreateFromFile(QA_ICON_ID, iconPath.c_str());
-        APIDefs->QuickAccess_Add(QA_ID, QA_ICON_ID, QA_ICON_ID, KB_TOGGLE, "ToDo List");
+        if (g.showQuickAccess)
+            APIDefs->QuickAccess_Add(QA_ID, QA_ICON_ID, QA_ICON_ID, KB_TOGGLE, "ToDo List");
     }
 
     std::string today  = GetCurrentUtcDate();
