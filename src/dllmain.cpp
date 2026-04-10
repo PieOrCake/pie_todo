@@ -1,110 +1,30 @@
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include "Shared.h"
-#include "Version.h"
-#include "imgui.h"
-#include "Nexus.h"
-#include <nlohmann/json.hpp>
-#include <string>
-#include <vector>
-#include <fstream>
-#include <cstdio>
-#include <ctime>
-#include <atomic>
-#include <algorithm>
 #include <shellapi.h>
+#include <string>
+#include <cstdio>
+#include <cstring>
 
-using json = nlohmann::json;
+#include "nexus/Nexus.h"
+#include "imgui.h"
+#include "TodoManager.h"
+#include "Shared.h"
 
-/* ── Constants ─────────────────────────────────────────────────────────────── */
+// Version constants
+#define V_MAJOR 0
+#define V_MINOR 9
+#define V_BUILD 0
+#define V_REVISION 1
 
-static const char* ADDON_NAME       = "PieTodo";
-static const char* KB_TOGGLE        = "KB_PIE_TODO_TOGGLE";
+/* ── UI Constants ──────────────────────────────────────────────────────────── */
+
 static const char* WINDOW_NAME      = "Pie's Awesome ToDo List";
-static const char* QA_ID            = "PieTodo_qa";
-static const char* QA_ICON_ID       = "PieTodo_icon";
-static const char* QA_ICON_FILENAME = "icon\\pie-todo-paper-icon.png";
 static const char* ICON_WINDOW_NAME = "##PieTodoIcon";
 
-static constexpr float MIN_WINDOW_DIM    = 200.f;
-static constexpr float DEFAULT_WINDOW_W  = 400.f;
-static constexpr float DEFAULT_WINDOW_H  = 480.f;
 static constexpr float ROW_PADDING       = 8.f;
 static constexpr float INPUT_WIDTH       = 126.f;
 static constexpr float COMBO_WIDTH       = 80.f;
 static constexpr float EDIT_FIELD_WIDTH  = 300.f;
 static constexpr float WRAP_WIDTH        = 280.f;
-static constexpr double RESET_CHECK_INTERVAL = 60.0;
-static constexpr double DIRTY_SAVE_DELAY     = 2.0;
-static constexpr double FILE_POLL_INTERVAL   = 1.0;
-
-/* ── Enums ─────────────────────────────────────────────────────────────────── */
-
-enum RepeatType    { Repeat_Daily = 0, Repeat_Weekly = 1 };
-enum CompletedMode { CompletedMode_Colour = 0, CompletedMode_Hide = 1 };
-
-/* ── Data types ────────────────────────────────────────────────────────────── */
-
-struct TodoItem {
-    std::string uid;
-    std::string text;
-    int         repeat    = Repeat_Daily;
-    bool        completed = false;
-};
-
-/* ── Application state ─────────────────────────────────────────────────────── */
-
-struct AppState {
-    std::vector<TodoItem> todos;
-    std::string           lastDailyReset;
-    std::string           lastWeeklyReset;
-    int                   completedMode = CompletedMode_Colour;
-
-    bool                  windowVisible         = false;
-    std::atomic<bool>     pendingToggle{false};
-    unsigned long long    uidCounter            = 0;
-
-    std::string           newTaskText;
-    int                   newTaskRepeat = Repeat_Daily;
-
-    std::string           editingUid;
-    std::string           editText;
-    int                   editRepeat       = Repeat_Daily;
-    bool                  editPopupPending = false;
-
-    std::string           deleteConfirmUid;
-    bool                  deletePopupPending = false;
-
-    double                lastResetCheckTime = 0.0;
-    int                   dragSourceIdx      = -1;
-
-    std::string           searchFilter;
-
-    std::string           contextMenuUid;
-    std::vector<ImVec2>   rowMin, rowMax;
-    std::vector<int>      rowVisibleIndices;
-
-    float                 winX = 0.f, winY = 0.f;
-    float                 winW = DEFAULT_WINDOW_W, winH = DEFAULT_WINDOW_H;
-    bool                  winGeometryLoaded = false;
-    bool                  lockPosition      = false;
-    bool                  lockSize          = false;
-
-    bool                  showQuickAccess   = true;
-    bool                  openOnLaunch      = false;
-    bool                  collapseEnabled   = false;
-    float                 collapseDelaySec  = 2.0f;
-    bool                  collapsed         = false;
-    double                lastHoverTime     = 0.0;
-
-    FILETIME              lastFileWriteTime = {};
-    double                lastFilePollTime  = 0.0;
-
-    bool                  dirty          = false;
-    double                dirtyTimestamp  = 0.0;
-};
-
-static AppState g;
 
 /* ── Forward declarations ──────────────────────────────────────────────────── */
 
@@ -115,269 +35,12 @@ void AddonLoad(AddonAPI_t* aApi);
 void AddonUnload();
 extern "C" __declspec(dllexport) AddonDefinition_t* GetAddonDef();
 
-/* ── Helpers ───────────────────────────────────────────────────────────────── */
-
-static std::string GetConfigPath(const char* filename) {
-    if (!APIDefs || !APIDefs->Paths_GetAddonDirectory) return {};
-    const char* dir = APIDefs->Paths_GetAddonDirectory(ADDON_NAME);
-    if (!dir || !dir[0]) return {};
-    std::string path = dir;
-    path += "\\";
-    path += filename;
-    return path;
-}
-
-static struct tm GetUtcTime() {
-    time_t t = time(nullptr);
-    struct tm result = {};
-    gmtime_s(&result, &t);
-    return result;
-}
-
-static std::string FormatDate(const struct tm& u) {
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%04d-%02d-%02d", u.tm_year + 1900, u.tm_mon + 1, u.tm_mday);
-    return buf;
-}
-
-static std::string GetCurrentUtcDate() {
-    return FormatDate(GetUtcTime());
-}
-
-static std::string GetThisMondayDate() {
-    struct tm u = GetUtcTime();
-    int daysBack = (u.tm_wday + 6) % 7;
-    time_t t = time(nullptr) - (time_t)daysBack * 86400;
-    struct tm m = {};
-    gmtime_s(&m, &t);
-    return FormatDate(m);
-}
-
-static std::string TrimWhitespace(const std::string& s) {
-    size_t start = 0;
-    while (start < s.size() && (unsigned char)s[start] <= 32) start++;
-    size_t end = s.size();
-    while (end > start && (unsigned char)s[end - 1] <= 32) end--;
-    return s.substr(start, end - start);
-}
-
-/* ── File modification time helper ─────────────────────────────────────────── */
-
-static FILETIME GetFileModTime(const std::string& path) {
-    FILETIME ft = {};
-    WIN32_FILE_ATTRIBUTE_DATA attr;
-    if (GetFileAttributesExA(path.c_str(), GetFileExInfoStandard, &attr))
-        ft = attr.ftLastWriteTime;
-    return ft;
-}
-
-/* ── Dirty-flag save ───────────────────────────────────────────────────────── */
-
-static void MarkDirty() {
-    g.dirty = true;
-    g.dirtyTimestamp = ImGui::GetTime();
-}
-
-static void SaveTodos() {
-    std::string path = GetConfigPath("todos.json");
-    if (path.empty()) return;
-
-    json j;
-    json arr = json::array();
-    for (const auto& t : g.todos) {
-        arr.push_back({
-            {"uid",       t.uid},
-            {"text",      t.text},
-            {"repeat",    t.repeat == Repeat_Weekly ? "weekly" : "daily"},
-            {"completed", t.completed}
-        });
-    }
-    j["todos"] = arr;
-    j["completed_tasks_mode"] = (g.completedMode == CompletedMode_Hide) ? "hide" : "colour";
-    j["lock_position"] = g.lockPosition;
-    j["lock_size"] = g.lockSize;
-    j["show_quick_access"] = g.showQuickAccess;
-    j["open_on_launch"] = g.openOnLaunch;
-    j["collapse_enabled"] = g.collapseEnabled;
-    j["collapse_delay_sec"] = g.collapseDelaySec;
-    if (!g.lastDailyReset.empty())  j["last_daily_reset"]  = g.lastDailyReset;
-    if (!g.lastWeeklyReset.empty()) j["last_weekly_reset"] = g.lastWeeklyReset;
-
-    std::ofstream f(path);
-    if (f) f << j.dump(2) << "\n";
-
-    g.dirty = false;
-
-    /* Update stored mod time so we don't reload our own save */
-    g.lastFileWriteTime = GetFileModTime(path);
-}
-
-static void FlushIfDirty() {
-    if (g.dirty && (ImGui::GetTime() - g.dirtyTimestamp >= DIRTY_SAVE_DELAY))
-        SaveTodos();
-}
-
-static void LoadTodos() {
-    std::string path = GetConfigPath("todos.json");
-    if (path.empty()) return;
-
-    std::ifstream f(path);
-    if (!f) return;
-
-    json j;
-    try { j = json::parse(f); }
-    catch (...) { return; }
-
-    /* Migrate: if old format had ISO timestamps, strip to YYYY-MM-DD */
-    auto extractDate = [](const std::string& s) -> std::string {
-        return (s.size() >= 10) ? s.substr(0, 10) : s;
-    };
-
-    if (j.contains("todos") && j["todos"].is_array()) {
-        g.todos.clear();
-        for (const auto& item : j["todos"]) {
-            TodoItem t;
-            if (item.contains("uid"))       t.uid       = item["uid"].get<std::string>();
-            if (item.contains("text"))      t.text      = item["text"].get<std::string>();
-            if (item.contains("repeat"))    t.repeat    = (item["repeat"].get<std::string>() == "weekly") ? Repeat_Weekly : Repeat_Daily;
-            if (item.contains("completed")) t.completed = item["completed"].get<bool>();
-            if (!t.uid.empty() || !t.text.empty())
-                g.todos.push_back(std::move(t));
-        }
-    }
-
-    if (j.contains("completed_tasks_mode"))
-        g.completedMode = (j["completed_tasks_mode"].get<std::string>() == "hide") ? CompletedMode_Hide : CompletedMode_Colour;
-    if (j.contains("lock_position"))
-        g.lockPosition = j["lock_position"].get<bool>();
-    if (j.contains("lock_size"))
-        g.lockSize = j["lock_size"].get<bool>();
-    if (j.contains("show_quick_access"))
-        g.showQuickAccess = j["show_quick_access"].get<bool>();
-    if (j.contains("open_on_launch"))
-        g.openOnLaunch = j["open_on_launch"].get<bool>();
-    if (j.contains("collapse_enabled"))
-        g.collapseEnabled = j["collapse_enabled"].get<bool>();
-    if (j.contains("collapse_delay_sec"))
-        g.collapseDelaySec = j["collapse_delay_sec"].get<float>();
-    if (j.contains("last_daily_reset"))
-        g.lastDailyReset = extractDate(j["last_daily_reset"].get<std::string>());
-    if (j.contains("last_weekly_reset"))
-        g.lastWeeklyReset = extractDate(j["last_weekly_reset"].get<std::string>());
-
-    /* Update stored mod time after loading */
-    g.lastFileWriteTime = GetFileModTime(path);
-}
-
-/* ── Window geometry ───────────────────────────────────────────────────────── */
-
-static void LoadWindowGeometry() {
-    std::string path = GetConfigPath("window.ini");
-    if (path.empty()) return;
-    std::ifstream f(path);
-    if (!f) return;
-    float x = 0.f, y = 0.f, w = 0.f, h = 0.f;
-    if (f >> x >> y >> w >> h && w >= MIN_WINDOW_DIM && h >= MIN_WINDOW_DIM) {
-        g.winX = x; g.winY = y; g.winW = w; g.winH = h;
-        g.winGeometryLoaded = true;
-    }
-}
-
-static void SaveWindowGeometry() {
-    std::string path = GetConfigPath("window.ini");
-    if (path.empty()) return;
-    std::ofstream f(path);
-    if (f) f << g.winX << " " << g.winY << " " << g.winW << " " << g.winH << "\n";
-}
-
-/* ── UID generation ────────────────────────────────────────────────────────── */
-
-static std::string GenerateUid() {
-    g.uidCounter++;
-    LARGE_INTEGER li;
-    QueryPerformanceCounter(&li);
-    char buf[64];
-    snprintf(buf, sizeof(buf), "id_%llu_%llu", (unsigned long long)li.QuadPart, g.uidCounter);
-    return buf;
-}
-
-/* ── Reset logic ───────────────────────────────────────────────────────────── */
-
-static void CheckResetTimes() {
-    struct tm u = GetUtcTime();
-    std::string today = FormatDate(u);
-    bool changed = false;
-
-    if (g.lastDailyReset.empty()) {
-        g.lastDailyReset = today;
-    } else if (today != g.lastDailyReset) {
-        for (auto& t : g.todos) {
-            if (t.repeat == Repeat_Daily && t.completed) {
-                t.completed = false;
-                changed = true;
-            }
-        }
-        g.lastDailyReset = today;
-    }
-
-    std::string mondayStr = GetThisMondayDate();
-    int daysSinceMonday = (u.tm_wday + 6) % 7;
-    bool pastMonday0730 = (daysSinceMonday > 0) || (u.tm_hour > 7 || (u.tm_hour == 7 && u.tm_min >= 30));
-
-    if (g.lastWeeklyReset.empty()) {
-        g.lastWeeklyReset = mondayStr;
-    } else if (pastMonday0730 && mondayStr != g.lastWeeklyReset) {
-        for (auto& t : g.todos) {
-            if (t.repeat == Repeat_Weekly && t.completed) {
-                t.completed = false;
-                changed = true;
-            }
-        }
-        g.lastWeeklyReset = mondayStr;
-    }
-
-    if (changed) MarkDirty();
-}
-
 /* ── Keybind handler ───────────────────────────────────────────────────────── */
 
 static void ProcessKeybind(const char* aIdentifier, bool aIsRelease) {
     if (aIsRelease) return;
     if (strcmp(aIdentifier, KB_TOGGLE) == 0)
         g.pendingToggle.store(true, std::memory_order_release);
-}
-
-/* ── Task operations ───────────────────────────────────────────────────────── */
-
-static void AddNewTodo() {
-    std::string text = TrimWhitespace(g.newTaskText);
-    if (text.empty()) return;
-    TodoItem item;
-    item.uid       = GenerateUid();
-    item.text      = std::move(text);
-    item.repeat    = g.newTaskRepeat;
-    item.completed = false;
-    g.todos.push_back(std::move(item));
-    g.newTaskText.clear();
-    g.newTaskRepeat = Repeat_Daily;
-    MarkDirty();
-}
-
-static int IndexForUid(const std::string& uid) {
-    for (size_t i = 0; i < g.todos.size(); i++)
-        if (g.todos[i].uid == uid) return (int)i;
-    return -1;
-}
-
-static void MoveTodo(int fromIdx, int toIdx) {
-    if (fromIdx < 0 || toIdx < 0 ||
-        fromIdx >= (int)g.todos.size() || toIdx >= (int)g.todos.size() ||
-        fromIdx == toIdx)
-        return;
-    TodoItem item = std::move(g.todos[fromIdx]);
-    g.todos.erase(g.todos.begin() + fromIdx);
-    g.todos.insert(g.todos.begin() + toIdx, std::move(item));
-    MarkDirty();
 }
 
 /* ── Main window rendering ─────────────────────────────────────────────────── */
@@ -391,9 +54,10 @@ static void RenderTodoWindow() {
     /* Poll for external file changes and flush pending saves (always, even when hidden) */
     if (now - g.lastFilePollTime >= FILE_POLL_INTERVAL) {
         g.lastFilePollTime = now;
-        std::string path = GetConfigPath("todos.json");
-        if (!path.empty()) {
-            FILETIME current = GetFileModTime(path);
+        if (g.cachedConfigPath.empty())
+            g.cachedConfigPath = GetConfigPath("todos.json");
+        if (!g.cachedConfigPath.empty()) {
+            FILETIME current = GetFileModTime(g.cachedConfigPath);
             if (CompareFileTime(&current, &g.lastFileWriteTime) != 0) {
                 LoadTodos();
             }
@@ -416,6 +80,10 @@ static void RenderTodoWindow() {
         CheckResetTimes();
     }
 
+    /* Rebuild cache if data or filter changed */
+    if (g.cacheDirty || g.searchFilter != g.cachedSearchFilter || g.completedMode != g.cachedCompletedMode)
+        RebuildCache();
+
     /* Collapsed icon mode */
     if (g.collapseEnabled && g.collapsed) {
         ImGui::SetNextWindowPos(ImVec2(g.winX, g.winY), ImGuiCond_Always);
@@ -427,14 +95,9 @@ static void RenderTodoWindow() {
             if (tex && tex->Resource) {
                 ImGui::Image(tex->Resource, ImVec2(32.f, 32.f));
             }
-            int dTotal = 0, dDone = 0, wTotal = 0, wDone = 0;
-            for (const auto& t : g.todos) {
-                if (t.repeat == Repeat_Daily)  { dTotal++; if (t.completed) dDone++; }
-                else                           { wTotal++; if (t.completed) wDone++; }
-            }
             char dBuf[32], wBuf[32];
-            snprintf(dBuf, sizeof(dBuf), "D: %d/%d", dDone, dTotal);
-            snprintf(wBuf, sizeof(wBuf), "W: %d/%d", wDone, wTotal);
+            snprintf(dBuf, sizeof(dBuf), "D: %d/%d", g.cachedDailyDone, g.cachedDailyTotal);
+            snprintf(wBuf, sizeof(wBuf), "W: %d/%d", g.cachedWeeklyDone, g.cachedWeeklyTotal);
             ImGui::TextUnformatted(dBuf);
             ImGui::TextUnformatted(wBuf);
 
@@ -494,22 +157,8 @@ static void RenderTodoWindow() {
         if (ImGui::Button("X")) g.searchFilter.clear();
     }
 
-    /* Build visible indices (respects completed-mode and search filter) */
-    std::vector<int> visibleIndices;
-    visibleIndices.reserve(g.todos.size());
-    for (size_t i = 0; i < g.todos.size(); i++) {
-        if (g.completedMode == CompletedMode_Hide && g.todos[i].completed) continue;
-        if (!g.searchFilter.empty()) {
-            /* Case-insensitive substring match */
-            const std::string& txt = g.todos[i].text;
-            const std::string& flt = g.searchFilter;
-            bool found = std::search(txt.begin(), txt.end(), flt.begin(), flt.end(),
-                [](char a, char b) { return std::tolower((unsigned char)a) == std::tolower((unsigned char)b); }
-            ) != txt.end();
-            if (!found) continue;
-        }
-        visibleIndices.push_back((int)i);
-    }
+    /* Use cached visible indices (rebuilt only on data/filter change) */
+    const std::vector<int>& visibleIndices = g.cachedVisibleIndices;
 
     /* Task list child window (leave room for status bar) */
     float statusBarHeight = ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y;
@@ -517,8 +166,9 @@ static void RenderTodoWindow() {
         const float listWidth = ImGui::GetContentRegionAvail().x;
         ImVec2 winPos = ImGui::GetWindowPos();
         float winWidth = ImGui::GetWindowWidth();
-        std::vector<ImVec2> rowMin(visibleIndices.size());
-        std::vector<ImVec2> rowMax(visibleIndices.size());
+        /* Reuse persistent row rect vectors instead of allocating every frame */
+        g.rowMin.resize(visibleIndices.size());
+        g.rowMax.resize(visibleIndices.size());
         const float repeatColWidth = ImGui::CalcTextSize("Weekly").x + ImGui::GetStyle().ItemSpacing.x * 2.f;
 
         for (size_t vi = 0; vi < visibleIndices.size(); vi++) {
@@ -572,8 +222,8 @@ static void RenderTodoWindow() {
 
             /* Store full row rect for drag-drop and right-click hit test */
             ImVec2 rEnd = ImGui::GetItemRectMax();
-            rowMin[vi] = ImVec2(winPos.x, rowStartPos.y);
-            rowMax[vi] = ImVec2(winPos.x + listWidth, rEnd.y);
+            g.rowMin[vi] = ImVec2(winPos.x, rowStartPos.y);
+            g.rowMax[vi] = ImVec2(winPos.x + listWidth, rEnd.y);
 
             ImGui::PopID();
         }
@@ -586,22 +236,22 @@ static void RenderTodoWindow() {
 
             /* Find which row the cursor is over and whether it's in the top or bottom half */
             for (size_t vi = 0; vi < visibleIndices.size(); vi++) {
-                if (mouse.y >= rowMin[vi].y && mouse.y < rowMax[vi].y) {
-                    float midY = (rowMin[vi].y + rowMax[vi].y) * 0.5f;
+                if (mouse.y >= g.rowMin[vi].y && mouse.y < g.rowMax[vi].y) {
+                    float midY = (g.rowMin[vi].y + g.rowMax[vi].y) * 0.5f;
                     dropVisIdx = (int)vi;
                     dropAfter = (mouse.y >= midY);
                     break;
                 }
             }
             /* If cursor is below all rows, drop after the last row */
-            if (dropVisIdx < 0 && !visibleIndices.empty() && mouse.y >= rowMax.back().y) {
+            if (dropVisIdx < 0 && !visibleIndices.empty() && mouse.y >= g.rowMax.back().y) {
                 dropVisIdx = (int)visibleIndices.size() - 1;
                 dropAfter = true;
             }
 
             /* Draw a very obvious drop indicator: thick line + arrow markers */
             if (dropVisIdx >= 0) {
-                float lineY = dropAfter ? rowMax[dropVisIdx].y : rowMin[dropVisIdx].y;
+                float lineY = dropAfter ? g.rowMax[dropVisIdx].y : g.rowMin[dropVisIdx].y;
                 float x1 = winPos.x + ROW_PADDING;
                 float x2 = winPos.x + winWidth - ROW_PADDING;
                 ImU32 lineCol = IM_COL32(255, 200, 0, 255);
@@ -632,10 +282,8 @@ static void RenderTodoWindow() {
             }
         }
 
-        /* Snapshot row rects for right-click after EndChild */
-        g.rowMin = std::move(rowMin);
-        g.rowMax = std::move(rowMax);
-        g.rowVisibleIndices = std::move(visibleIndices);
+        /* rowMin/rowMax are already written to g.rowMin/g.rowMax in-place */
+        g.rowVisibleIndices = visibleIndices;
     }
     ImGui::EndChild();
 
@@ -738,13 +386,10 @@ static void RenderTodoWindow() {
         ImGui::EndPopup();
     }
 
-    /* Status bar */
+    /* Status bar (uses cached counts) */
     {
-        int total = (int)g.todos.size();
-        int done = 0;
-        for (const auto& t : g.todos) if (t.completed) done++;
         char statusBuf[64];
-        snprintf(statusBuf, sizeof(statusBuf), "%d/%d completed", done, total);
+        snprintf(statusBuf, sizeof(statusBuf), "%d/%d completed", g.cachedDone, g.cachedTotal);
         float textW = ImGui::CalcTextSize(statusBuf).x;
         ImGui::SetCursorPosX(ImGui::GetWindowContentRegionMax().x - textW);
         ImGui::TextUnformatted(statusBuf);
@@ -913,10 +558,10 @@ AddonDefinition_t* GetAddonDef() {
     AddonDef.Signature   = 0xa597f7f8;
     AddonDef.APIVersion  = NEXUS_API_VERSION;
     AddonDef.Name        = "Pie Todo";
-    AddonDef.Version.Major    = ADDON_VERSION_MAJOR;
-    AddonDef.Version.Minor    = ADDON_VERSION_MINOR;
-    AddonDef.Version.Build    = ADDON_VERSION_BUILD;
-    AddonDef.Version.Revision = ADDON_VERSION_REVISION;
+    AddonDef.Version.Major    = V_MAJOR;
+    AddonDef.Version.Minor    = V_MINOR;
+    AddonDef.Version.Build    = V_BUILD;
+    AddonDef.Version.Revision = V_REVISION;
     AddonDef.Author      = "PieOrCake.7635";
     AddonDef.Description = "ToDo list to keep track of your daily and weekly gaming activities.";
     AddonDef.Load        = AddonLoad;

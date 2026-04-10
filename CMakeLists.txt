@@ -1,109 +1,80 @@
-cmake_minimum_required(VERSION 3.16)
-project(PieTodo LANGUAGES CXX)
-
-# MinGW: use static winpthread so no libwinpthread-1.dll is needed. Remove from
-# implicit libs so we can link it statically explicitly; otherwise the linker may pull the .dll.
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_SYSTEM_NAME STREQUAL "Windows")
-  list(REMOVE_ITEM CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "pthread")
-endif()
+cmake_minimum_required(VERSION 3.20)
+project(PieTodo)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# ImGui: must match Nexus loader version (1.80) so ImGuiContext ABI is compatible
-include(FetchContent)
-FetchContent_Declare(
-  imgui
-  GIT_REPOSITORY https://github.com/ocornut/imgui.git
-  GIT_TAG        v1.80
-)
-FetchContent_MakeAvailable(imgui)
-FetchContent_Declare(
-  json
-  GIT_REPOSITORY https://github.com/nlohmann/json.git
-  GIT_TAG        v3.11.3
-  GIT_SHALLOW    TRUE
-)
-set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
-set(JSON_Install OFF CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(json)
-
-set(IMGUI_SRC_DIR ${imgui_SOURCE_DIR})
-
-
-add_library(${PROJECT_NAME} SHARED
-  src/entry.cpp
-  src/Shared.cpp
-  src/PieTodo.def
-  ${IMGUI_SRC_DIR}/imgui.cpp
-  ${IMGUI_SRC_DIR}/imgui_draw.cpp
-  ${IMGUI_SRC_DIR}/imgui_tables.cpp
-  ${IMGUI_SRC_DIR}/imgui_widgets.cpp
-)
-
-target_include_directories(${PROJECT_NAME} PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/src
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/nexus
-  ${IMGUI_SRC_DIR}
-)
-
-target_link_libraries(${PROJECT_NAME} PRIVATE nlohmann_json::nlohmann_json)
-
-# Smallest binary: size optimizations, section GC, strip, and LTO.
-if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
-  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    target_compile_options(${PROJECT_NAME} PRIVATE
-      -Os
-      -ffunction-sections
-      -fdata-sections
-    )
-    target_link_options(${PROJECT_NAME} PRIVATE
-      "LINKER:-s"
-      "LINKER:--gc-sections"
-    )
-  endif()
-  # LTO disabled: triggers ICE in GCC 15 with ImGui (binds_to_current_def_p in symtab.cc).
-  # set_property(TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+# Default to Release build for optimized, stripped output
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
 endif()
+set(CMAKE_CXX_FLAGS_RELEASE "-Os -DNDEBUG")
 
-if(WIN32)
-  set_target_properties(${PROJECT_NAME} PROPERTIES
-    OUTPUT_NAME ${PROJECT_NAME}
-    PREFIX ""
+# Cross-compilation setup for Windows on Linux
+set(CMAKE_SYSTEM_NAME Windows)
+set(CMAKE_C_COMPILER x86_64-w64-mingw32-gcc)
+set(CMAKE_CXX_COMPILER x86_64-w64-mingw32-g++)
+set(CMAKE_RC_COMPILER x86_64-w64-mingw32-windres)
+
+# Static linking to avoid Windows DLL dependencies
+set(CMAKE_EXE_LINKER_FLAGS "-static -static-libgcc -static-libstdc++")
+set(CMAKE_SHARED_LINKER_FLAGS "-static -static-libgcc -static-libstdc++")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libgcc -static-libstdc++ -DWIN32_LEAN_AND_MEAN")
+
+# Include directories
+include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/lib)
+include_directories(${CMAKE_SOURCE_DIR}/lib/imgui)
+include_directories(${CMAKE_SOURCE_DIR}/src)
+
+# ImGui source files
+set(IMGUI_SOURCES
+    lib/imgui/imgui.cpp
+    lib/imgui/imgui_draw.cpp
+    lib/imgui/imgui_tables.cpp
+    lib/imgui/imgui_widgets.cpp
+)
+
+# Source files
+set(SOURCES
+    src/dllmain.cpp
+    src/TodoManager.cpp
+    src/Shared.cpp
+    ${IMGUI_SOURCES}
+)
+
+# Header files
+set(HEADERS
+    include/nexus/Nexus.h
+    src/TodoManager.h
+    src/Shared.h
+)
+
+# Create shared library (DLL)
+add_library(PieTodo SHARED ${SOURCES} ${HEADERS})
+
+# Force Windows DLL extension
+set_target_properties(PieTodo PROPERTIES
     SUFFIX ".dll"
-    WINDOWS_EXPORT_ALL_SYMBOLS OFF
-  )
-  target_compile_definitions(${PROJECT_NAME} PRIVATE
-    _WINDOWS
-    UNICODE
-    _UNICODE
-  )
-  set(DEF_FILE "${CMAKE_CURRENT_SOURCE_DIR}/src/PieTodo.def")
-  if(MSVC)
-    target_link_options(${PROJECT_NAME} PRIVATE /DEF:${DEF_FILE})
-  elseif(MINGW)
-    set_property(TARGET ${PROJECT_NAME} APPEND_STRING PROPERTY LINK_FLAGS " ${DEF_FILE}")
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-      # Static-link winpthread into the DLL so no libwinpthread-1.dll is needed at load.
-      if(CMAKE_CROSSCOMPILING AND CMAKE_FIND_ROOT_PATH)
-        list(GET CMAKE_FIND_ROOT_PATH 0 _mingw_root)
-        target_link_options(${PROJECT_NAME} PRIVATE
-          "-static-libgcc" "-static-libstdc++"
-          "-Wl,-Bstatic" "-Wl,--whole-archive" "${_mingw_root}/lib/libwinpthread.a" "-Wl,--no-whole-archive" "-Wl,-Bdynamic")
-      else()
-        target_link_options(${PROJECT_NAME} PRIVATE
-          "-static-libgcc" "-static-libstdc++"
-          "LINKER:-Bstatic" "LINKER:--whole-archive" "LINKER:-l:libwinpthread.a" "LINKER:--no-whole-archive" "LINKER:-Bdynamic")
-      endif()
-    endif()
-  endif()
-endif()
+    PREFIX ""
+)
 
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${PROJECT_NAME}>/PieTodo"
-  COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${PROJECT_NAME}>/PieTodo/icon"
-  COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    "${CMAKE_CURRENT_SOURCE_DIR}/icon/pie-todo-paper-icon.png"
-    "$<TARGET_FILE_DIR:${PROJECT_NAME}>/PieTodo/icon/pie-todo-paper-icon.png"
-  COMMENT "Create PieTodo addon folder and copy Quick Access icon"
+# Module definition file for clean DLL export
+target_link_options(PieTodo PRIVATE -Wl,--out-implib,PieTodo.lib -Wl,--strip-all)
+target_sources(PieTodo PRIVATE ${CMAKE_SOURCE_DIR}/PieTodo.def)
+
+# Output directory
+set_target_properties(PieTodo PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+
+# Post-build: copy icon into addon folder
+add_custom_command(TARGET PieTodo POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:PieTodo>/PieTodo"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:PieTodo>/PieTodo/icon"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/icon/pie-todo-paper-icon.png"
+        "$<TARGET_FILE_DIR:PieTodo>/PieTodo/icon/pie-todo-paper-icon.png"
+    COMMENT "Create PieTodo addon folder and copy Quick Access icon"
 )
