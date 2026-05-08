@@ -983,8 +983,6 @@ static void RenderOptions() {
         ImGui::SetTooltip("Show completed tasks with a green row (Colour) or hide them (Hide).");
 
     ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
     ImGui::Text("Display style:");
     ImGui::SameLine();
     if (ImGui::RadioButton("Fancy", g.displayMode == DisplayMode_Fancy)) {
@@ -1000,8 +998,6 @@ static void RenderOptions() {
         ImGui::SetTooltip("Fancy: scroll artwork, fixed size.\nBoring: plain resizable window.");
 
     ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
     if (ImGui::Checkbox("Lock window position", &g.lockPosition))
         MarkDirty();
     ImGui::SameLine();
@@ -1009,8 +1005,6 @@ static void RenderOptions() {
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Prevent the window from being dragged.");
 
-    ImGui::Spacing();
-    ImGui::Separator();
     ImGui::Spacing();
     if (ImGui::Checkbox("Show Quick Access icon", &g.showQuickAccess)) {
         if (g.showQuickAccess)
@@ -1024,8 +1018,6 @@ static void RenderOptions() {
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Show or hide the shortcut icon in the Quick Access bar.");
 
-    ImGui::Spacing();
-    ImGui::Separator();
     ImGui::Spacing();
     if (ImGui::Checkbox("Open on launch", &g.openOnLaunch))
         MarkDirty();
