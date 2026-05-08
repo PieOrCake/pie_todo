@@ -188,13 +188,13 @@ static void RenderTodoWindow() {
     ImGui::SetCursorPos(ImVec2(0.f, g.posDragY));
     ImGui::InvisibleButton("##drag", ImVec2(ImGui::GetWindowWidth(), g.posDragH));
     bool dragHovered = ImGui::IsItemHovered();
-    if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0) && !g.lockPosition) {
+    if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0) && !g.lockPosition && !g.layoutEditMode) {
         ImVec2 delta = ImGui::GetIO().MouseDelta;
         g.winX += delta.x;
         g.winY += delta.y;
         ImGui::SetWindowPos(ImVec2(g.winX, g.winY));
     }
-    if (dragHovered && !g.lockPosition)
+    if (dragHovered && !g.lockPosition && !g.layoutEditMode)
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
     {
         ImDrawList* fdl = ImGui::GetForegroundDrawList();
@@ -542,12 +542,14 @@ static void RenderTodoWindow() {
 
     /* ── Layout edit mode overlays ──────────────────────────────────────────── */
     if (g.layoutEditMode) {
-        static int s_dragHandle = -1;
+        static int  s_dragHandle = -1;
+        static bool s_dragResize = false;
         ImDrawList* fdl = ImGui::GetForegroundDrawList();
         ImVec2 wpos = ImGui::GetWindowPos();
         float  winW = ImGui::GetWindowWidth();
         float  winH = ImGui::GetWindowHeight();
         float  pad  = 4.f;
+        const float RC = 10.f; /* resize corner hit size */
 
         struct Handle {
             const char* label;
@@ -555,23 +557,25 @@ static void RenderTodoWindow() {
             float       sx, sy, sw, sh;
             float*      px;
             float*      py;
+            float*      pw; /* resizable width field, or nullptr */
+            float*      ph; /* resizable height/bottom field, or nullptr */
         } handles[] = {
             { "DRAG",   IM_COL32(60, 120, 255, 120),
               wpos.x,             wpos.y + pad + g.posDragY,     winW,              g.posDragH,
-              nullptr,            &g.posDragY },
+              nullptr,            &g.posDragY,   nullptr,          &g.posDragH },
             { "SEARCH", IM_COL32(50, 200, 80,  120),
               wpos.x + pad + g.posSearchX, wpos.y + pad + g.posSearchY, g.posSearchW + 30.f, 22.f,
-              &g.posSearchX,      &g.posSearchY },
+              &g.posSearchX,      &g.posSearchY, &g.posSearchW,    nullptr },
             { "TASKS",  IM_COL32(220, 160, 40, 100),
               wpos.x + pad + g.posTaskX,   wpos.y + pad + g.posTaskY,   winW - 8.f - 2.f*g.posTaskX, g.posTaskBot - g.posTaskY,
-              &g.posTaskX,        &g.posTaskY },
+              &g.posTaskX,        &g.posTaskY,   nullptr,          &g.posTaskBot },
             { "ADD",    IM_COL32(180, 60, 220, 120),
               wpos.x + pad + g.posAddX,    wpos.y + pad + g.posAddY,    160.f, 22.f,
-              &g.posAddX,         &g.posAddY },
+              &g.posAddX,         &g.posAddY,    nullptr,          nullptr },
             { "RESIZE", IM_COL32(220, 60, 60,  120),
               wpos.x + winW + g.posResizeX - g.posResizeSize, wpos.y + winH + g.posResizeY - g.posResizeSize,
               g.posResizeSize, g.posResizeSize,
-              &g.posResizeX,      &g.posResizeY },
+              &g.posResizeX,      &g.posResizeY, &g.posResizeSize, nullptr },
         };
 
         ImVec2 mouse = ImGui::GetIO().MousePos;
@@ -579,13 +583,23 @@ static void RenderTodoWindow() {
             Handle& h = handles[i];
             bool over = mouse.x >= h.sx && mouse.x < h.sx + h.sw
                      && mouse.y >= h.sy && mouse.y < h.sy + h.sh;
-            if (over && ImGui::GetIO().MouseClicked[0] && s_dragHandle < 0)
+            if (over && ImGui::GetIO().MouseClicked[0] && s_dragHandle < 0) {
                 s_dragHandle = i;
+                bool inCorner = (h.pw || h.ph)
+                             && mouse.x >= h.sx + h.sw - RC
+                             && mouse.y >= h.sy + h.sh - RC;
+                s_dragResize = inCorner;
+            }
             if (s_dragHandle == i) {
                 if (ImGui::GetIO().MouseDown[0]) {
                     ImVec2 d = ImGui::GetIO().MouseDelta;
-                    if (h.px) *h.px += d.x;
-                    if (h.py) *h.py += d.y;
+                    if (s_dragResize) {
+                        if (h.pw) *h.pw += d.x;
+                        if (h.ph) *h.ph += d.y;
+                    } else {
+                        if (h.px) *h.px += d.x;
+                        if (h.py) *h.py += d.y;
+                    }
                     MarkDirty();
                 } else {
                     s_dragHandle = -1;
@@ -597,6 +611,16 @@ static void RenderTodoWindow() {
             fdl->AddRect(ImVec2(h.sx, h.sy), ImVec2(h.sx+h.sw, h.sy+h.sh),
                          IM_COL32(255,255,255,200), 3.f, 0, 1.5f);
             fdl->AddText(ImVec2(h.sx+4.f, h.sy+4.f), IM_COL32(255,255,255,255), h.label);
+            /* Resize corner indicator */
+            if (h.pw || h.ph) {
+                ImU32 cornerCol = (active && s_dragResize)
+                    ? IM_COL32(255, 255, 100, 240)
+                    : IM_COL32(255, 255, 100, 160);
+                fdl->AddRectFilled(
+                    ImVec2(h.sx + h.sw - RC, h.sy + h.sh - RC),
+                    ImVec2(h.sx + h.sw,      h.sy + h.sh),
+                    cornerCol, 2.f);
+            }
         }
     }
 
