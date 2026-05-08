@@ -21,7 +21,7 @@
 
 static const char* WINDOW_NAME        = "Pie's Awesome ToDo List";
 static const char* ICON_WINDOW_NAME   = "##PieTodoIcon";
-static const char* FLOAT_ICON_TEX_ID  = "PieTodo_float_icon";
+static const char* FLOAT_ICON_TEX_ID  = "PieTodo_float_icon_v2";
 
 static constexpr float ROW_PADDING        = 8.f;
 static constexpr float INPUT_WIDTH        = 86.f;
