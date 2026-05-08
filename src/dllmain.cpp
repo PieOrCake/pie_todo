@@ -510,9 +510,20 @@ static void RenderTodoWindow() {
             s_resizing = false;
         if (s_resizing) {
             ImVec2 delta = ImGui::GetIO().MouseDelta;
-            g.winW = std::max(MIN_WINDOW_DIM, g.winW + delta.x);
-            g.winH = std::max(MIN_WINDOW_DIM, g.winH + delta.y);
+            float newW = std::max(MIN_WINDOW_DIM, g.winW + delta.x);
+            float newH = std::max(MIN_WINDOW_DIM, g.winH + delta.y);
+            float sx = newW / g.winW;
+            float sy = newH / g.winH;
+            g.winW = newW;
+            g.winH = newH;
             ImGui::SetWindowSize(ImVec2(g.winW, g.winH));
+            /* Scale all layout positions proportionally with the window */
+            g.posDragY   *= sy; g.posDragH   *= sy;
+            g.posSearchX *= sx; g.posSearchY *= sy; g.posSearchW *= sx;
+            g.posTaskX   *= sx; g.posTaskY   *= sy; g.posTaskBot *= sy;
+            g.posAddX    *= sx; g.posAddY    *= sy;
+            /* posResizeX/Y are offsets from the corner — don't scale them */
+            MarkDirty();
             ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNWSE);
         } else if (overGrip) {
             ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNWSE);
@@ -711,11 +722,11 @@ static void RenderOptions() {
         ImGui::SetTooltip("Drag the coloured overlays on the window\nto reposition each element.\nYellow corner = resize.");
     ImGui::SameLine();
     if (ImGui::SmallButton("Reset layout")) {
-        g.posDragY = 8.f; g.posDragH = 48.f;
-        g.posSearchX = 180.f; g.posSearchY = 10.f; g.posSearchW = 110.f;
-        g.posTaskX = 18.f; g.posTaskY = 64.f; g.posTaskBot = 354.f;
-        g.posAddX = 150.f; g.posAddY = 368.f;
-        g.posResizeX = 0.f; g.posResizeY = 0.f; g.posResizeSize = 28.f;
+        g.posDragY = 27.f; g.posDragH = 48.f;
+        g.posSearchX = 87.f; g.posSearchY = 75.f; g.posSearchW = 110.f;
+        g.posTaskX = 72.f; g.posTaskY = 108.f; g.posTaskBot = 298.f;
+        g.posAddX = 70.f; g.posAddY = 323.f;
+        g.posResizeX = -51.f; g.posResizeY = -42.f; g.posResizeSize = 28.f;
         MarkDirty();
     }
 
