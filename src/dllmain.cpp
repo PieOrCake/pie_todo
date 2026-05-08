@@ -102,8 +102,10 @@ static void RenderTodoWindow() {
             ImGui::TextUnformatted(wBuf);
 
             if (ImGui::IsWindowHovered()) {
-                g.collapsed = false;
-                g.lastHoverTime = now;
+                if (!g.expandOnClick || ImGui::IsMouseClicked(0)) {
+                    g.collapsed = false;
+                    g.lastHoverTime = now;
+                }
             }
         }
         ImGui::End();
@@ -139,7 +141,7 @@ static void RenderTodoWindow() {
     ImGui::SameLine();
     const char* repeatLabels[] = { "Daily", "Weekly" };
     ImGui::SetNextItemWidth(COMBO_WIDTH);
-    ImGui::Combo("##repeat", &g.newTaskRepeat, repeatLabels, 2);
+    ImGui::Combo("##repeat", (int*)&g.newTaskRepeat, repeatLabels, 2);
     ImGui::SameLine();
     if (ImGui::Button("Add")) AddNewTodo();
 
@@ -333,7 +335,7 @@ static void RenderTodoWindow() {
         bool enter = ImGui::InputText("Task", editBuf, sizeof(editBuf), ImGuiInputTextFlags_EnterReturnsTrue);
         g.editText = editBuf;
         const char* editRepeatLabels[] = { "Daily", "Weekly" };
-        ImGui::Combo("Repeat", &g.editRepeat, editRepeatLabels, 2);
+        ImGui::Combo("Repeat", (int*)&g.editRepeat, editRepeatLabels, 2);
         if (ImGui::Button("OK") || enter) {
             int i = IndexForUid(g.editingUid);
             if (i >= 0) {
@@ -489,8 +491,19 @@ static void RenderOptions() {
             if (g.collapseDelaySec > 30.0f) g.collapseDelaySec = 30.0f;
             MarkDirty();
         }
+        ImGui::Text("Expand icon on:");
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Hover", !g.expandOnClick)) {
+            g.expandOnClick = false;
+            MarkDirty();
+        }
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Click", g.expandOnClick)) {
+            g.expandOnClick = true;
+            MarkDirty();
+        }
     }
-    ImGui::TextWrapped("When enabled, the window collapses to an icon after the mouse leaves. Hover the icon to expand.");
+    ImGui::TextWrapped("When enabled, the window collapses to an icon after the mouse leaves. Hover or click the icon to expand.");
 }
 
 /* ── Addon lifecycle ───────────────────────────────────────────────────────── */

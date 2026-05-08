@@ -110,11 +110,25 @@ void SaveTodos() {
     j["open_on_launch"] = g.openOnLaunch;
     j["collapse_enabled"] = g.collapseEnabled;
     j["collapse_delay_sec"] = g.collapseDelaySec;
+    j["expand_on_click"] = g.expandOnClick;
     if (!g.lastDailyReset.empty())  j["last_daily_reset"]  = g.lastDailyReset;
     if (!g.lastWeeklyReset.empty()) j["last_weekly_reset"] = g.lastWeeklyReset;
 
-    std::ofstream f(path);
-    if (f) f << j.dump(2) << "\n";
+    std::string tmpPath = path + ".tmp";
+    {
+        std::ofstream f(tmpPath);
+        if (!f) return;
+        f << j.dump(2) << "\n";
+        if (!f.good()) {
+            f.close();
+            DeleteFileA(tmpPath.c_str());
+            return;
+        }
+    }
+    if (!MoveFileExA(tmpPath.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING)) {
+        DeleteFileA(tmpPath.c_str());
+        return;
+    }
 
     g.dirty = false;
 
@@ -170,6 +184,8 @@ void LoadTodos() {
         g.collapseEnabled = j["collapse_enabled"].get<bool>();
     if (j.contains("collapse_delay_sec"))
         g.collapseDelaySec = j["collapse_delay_sec"].get<float>();
+    if (j.contains("expand_on_click"))
+        g.expandOnClick = j["expand_on_click"].get<bool>();
     if (j.contains("last_daily_reset"))
         g.lastDailyReset = extractDate(j["last_daily_reset"].get<std::string>());
     if (j.contains("last_weekly_reset"))
@@ -183,22 +199,62 @@ void LoadTodos() {
 /* ── Window geometry ───────────────────────────────────────────────────────── */
 
 void LoadWindowGeometry() {
-    std::string path = GetConfigPath("window.ini");
-    if (path.empty()) return;
-    std::ifstream f(path);
-    if (!f) return;
+    std::string jsonPath   = GetConfigPath("window.json");
+    std::string legacyPath = GetConfigPath("window.ini");
+    if (jsonPath.empty()) return;
+
     float x = 0.f, y = 0.f, w = 0.f, h = 0.f;
-    if (f >> x >> y >> w >> h && w >= MIN_WINDOW_DIM && h >= MIN_WINDOW_DIM) {
-        g.winX = x; g.winY = y; g.winW = w; g.winH = h;
-        g.winGeometryLoaded = true;
+    bool loaded = false;
+
+    {
+        std::ifstream f(jsonPath);
+        if (f) {
+            json j;
+            try {
+                j = json::parse(f);
+                x = j.value("x", 0.f);
+                y = j.value("y", 0.f);
+                w = j.value("w", 0.f);
+                h = j.value("h", 0.f);
+                loaded = true;
+            } catch (...) {}
+        }
     }
+
+    if (!loaded && !legacyPath.empty()) {
+        std::ifstream f(legacyPath);
+        if (f && (f >> x >> y >> w >> h)) {
+            loaded = true;
+            f.close();
+            DeleteFileA(legacyPath.c_str());
+        }
+    }
+
+    if (!loaded || w < MIN_WINDOW_DIM || h < MIN_WINDOW_DIM) return;
+
+    /* Clamp position so the window can't land fully off-screen */
+    const float margin  = 50.f;
+    float screenX = (float)GetSystemMetrics(SM_XVIRTUALSCREEN);
+    float screenY = (float)GetSystemMetrics(SM_YVIRTUALSCREEN);
+    float screenW = (float)GetSystemMetrics(SM_CXVIRTUALSCREEN);
+    float screenH = (float)GetSystemMetrics(SM_CYVIRTUALSCREEN);
+    x = std::max(screenX - w + margin, std::min(x, screenX + screenW - margin));
+    y = std::max(screenY,              std::min(y, screenY + screenH - margin));
+
+    g.winX = x; g.winY = y; g.winW = w; g.winH = h;
+    g.winGeometryLoaded = true;
 }
 
 void SaveWindowGeometry() {
-    std::string path = GetConfigPath("window.ini");
+    std::string path = GetConfigPath("window.json");
     if (path.empty()) return;
+    json j;
+    j["x"] = g.winX;
+    j["y"] = g.winY;
+    j["w"] = g.winW;
+    j["h"] = g.winH;
     std::ofstream f(path);
-    if (f) f << g.winX << " " << g.winY << " " << g.winW << " " << g.winH << "\n";
+    if (f) f << j.dump(2) << "\n";
 }
 
 /* ── UID generation ────────────────────────────────────────────────────────── */

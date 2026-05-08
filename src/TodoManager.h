@@ -34,7 +34,7 @@ static constexpr double FILE_POLL_INTERVAL   = 1.0;
 struct TodoItem {
     std::string uid;
     std::string text;
-    int         repeat    = Repeat_Daily;
+    RepeatType  repeat    = Repeat_Daily;
     bool        completed = false;
 };
 
@@ -51,11 +51,11 @@ struct AppState {
     unsigned long long    uidCounter            = 0;
 
     std::string           newTaskText;
-    int                   newTaskRepeat = Repeat_Daily;
+    RepeatType            newTaskRepeat = Repeat_Daily;
 
     std::string           editingUid;
     std::string           editText;
-    int                   editRepeat       = Repeat_Daily;
+    RepeatType            editRepeat       = Repeat_Daily;
     bool                  editPopupPending = false;
 
     std::string           deleteConfirmUid;
@@ -90,6 +90,7 @@ struct AppState {
     bool                  openOnLaunch      = false;
     bool                  collapseEnabled   = false;
     float                 collapseDelaySec  = 2.0f;
+    bool                  expandOnClick     = false;
     bool                  collapsed         = false;
     double                lastHoverTime     = 0.0;
 

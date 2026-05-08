@@ -17,3 +17,7 @@ build/
 Thumbs.db
 
 # Dependencies are vendored (lib/imgui, lib/nlohmann, include/nexus)
+
+# LLM
+CLAUDE.md
+handover.md
