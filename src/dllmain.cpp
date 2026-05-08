@@ -28,7 +28,7 @@ static constexpr float INPUT_WIDTH        = 126.f;
 static constexpr float COMBO_WIDTH        = 80.f;
 static constexpr float EDIT_FIELD_WIDTH   = 300.f;
 static constexpr float WRAP_WIDTH         = 280.f;
-static constexpr float DRAG_HANDLE_HEIGHT = 30.f;
+static constexpr float DRAG_HANDLE_HEIGHT = 42.f;
 static constexpr float RESIZE_GRIP_SIZE   = 16.f;
 
 /* ── Forward declarations ──────────────────────────────────────────────────── */
@@ -144,10 +144,14 @@ static void RenderTodoWindow() {
     }
     ImGuiWindowFlags wflags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBackground
                             | ImGuiWindowFlags_NoResize   | ImGuiWindowFlags_NoScrollbar;
+    /* Pad content away from the scroll's rolled edges */
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(38.f, 6.f));
     if (!ImGui::Begin(WINDOW_NAME, nullptr, wflags)) {
+        ImGui::PopStyleVar();
         ImGui::End();
         return;
     }
+    ImGui::PopStyleVar();
 
     /* ── Sepia colour theme ─────────────────────────────────────────────────── */
     ImGui::PushStyleColor(ImGuiCol_Text,                 IM_COL32(40,  20,  10,  220));
