@@ -144,8 +144,7 @@ static void RenderTodoWindow() {
     }
     ImGuiWindowFlags wflags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBackground
                             | ImGuiWindowFlags_NoResize   | ImGuiWindowFlags_NoScrollbar;
-    /* Pad content away from the scroll's rolled edges */
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(58.f, 6.f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(g.layoutPaddingX, 6.f));
     if (!ImGui::Begin(WINDOW_NAME, nullptr, wflags)) {
         ImGui::PopStyleVar();
         ImGui::End();
@@ -173,7 +172,8 @@ static void RenderTodoWindow() {
     ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, IM_COL32(120, 80,  40,  220));
     static constexpr int SEPIA_COLOUR_COUNT = 17;
 
-    ImGui::SetWindowFontScale(g.textScale);
+    /* Auto-scale font proportionally to window width */
+    ImGui::SetWindowFontScale(ImGui::GetWindowWidth() / DEFAULT_WINDOW_W);
 
     /* ── Background image ───────────────────────────────────────────────────── */
     {
@@ -187,11 +187,11 @@ static void RenderTodoWindow() {
 
     /* ── Zone heights (proportional to scroll art) ──────────────────────────── */
     float winH       = ImGui::GetWindowHeight();
-    float bottomRoll = winH * 0.26f;
+    float bottomRoll = winH * g.layoutBottomRoll;
 
     /* ── Top roll: drag handle + narrowed centred search box ───────────────── */
     ImGui::SetCursorPos(ImVec2(0.f, 0.f));
-    ImGui::InvisibleButton("##drag", ImVec2(ImGui::GetWindowWidth(), DRAG_HANDLE_HEIGHT));
+    ImGui::InvisibleButton("##drag", ImVec2(ImGui::GetWindowWidth(), winH * g.layoutTopRoll));
     if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0) && !g.lockPosition) {
         ImVec2 delta = ImGui::GetIO().MouseDelta;
         g.winX += delta.x;
@@ -208,7 +208,7 @@ static void RenderTodoWindow() {
         float xBtnW  = ImGui::CalcTextSize("X").x + ImGui::GetStyle().FramePadding.x * 2.f;
         float searchW = 110.f;
         float totalW  = searchW + ImGui::GetStyle().ItemSpacing.x + xBtnW;
-        ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x - totalW);
+        ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x - totalW - g.layoutSearchInset);
         ImGui::SetNextItemWidth(searchW);
         if (ImGui::InputTextWithHint("##search", "Search...", searchBuf, sizeof(searchBuf)))
             g.searchFilter = searchBuf;
@@ -450,8 +450,8 @@ static void RenderTodoWindow() {
         float addBtnW   = ImGui::CalcTextSize("Add").x + ImGui::GetStyle().FramePadding.x * 2.f;
         float totalW    = INPUT_WIDTH + ImGui::GetStyle().ItemSpacing.x
                         + COMBO_WIDTH + ImGui::GetStyle().ItemSpacing.x + addBtnW;
-        ImGui::Spacing();
-        ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x - totalW);
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + g.layoutAddExtraY);
+        ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x - totalW - g.layoutAddInset);
 
         char newBuf[512];
         strncpy(newBuf, g.newTaskText.c_str(), sizeof(newBuf) - 1);
@@ -611,11 +611,19 @@ static void RenderOptions() {
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
-    ImGui::SetNextItemWidth(100.f);
-    if (ImGui::SliderFloat("Text size", &g.textScale, 0.7f, 1.5f, "%.2f")) {
-        g.textScale = std::max(0.7f, std::min(g.textScale, 1.5f));
-        MarkDirty();
-    }
+    ImGui::TextDisabled("Layout tuning");
+    ImGui::SetNextItemWidth(120.f);
+    if (ImGui::SliderFloat("Top roll",      &g.layoutTopRoll,    0.05f, 0.30f, "%.3f")) MarkDirty();
+    ImGui::SetNextItemWidth(120.f);
+    if (ImGui::SliderFloat("Bottom roll",   &g.layoutBottomRoll, 0.10f, 0.40f, "%.3f")) MarkDirty();
+    ImGui::SetNextItemWidth(120.f);
+    if (ImGui::SliderFloat("Padding X",     &g.layoutPaddingX,   20.f,  100.f, "%.1f")) MarkDirty();
+    ImGui::SetNextItemWidth(120.f);
+    if (ImGui::SliderFloat("Search inset",  &g.layoutSearchInset, 0.f,  80.f,  "%.1f")) MarkDirty();
+    ImGui::SetNextItemWidth(120.f);
+    if (ImGui::SliderFloat("Add inset",     &g.layoutAddInset,    0.f,  80.f,  "%.1f")) MarkDirty();
+    ImGui::SetNextItemWidth(120.f);
+    if (ImGui::SliderFloat("Add offset Y",  &g.layoutAddExtraY,   0.f,  40.f,  "%.1f")) MarkDirty();
 
     ImGui::Spacing();
     ImGui::Separator();

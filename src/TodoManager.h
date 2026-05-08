@@ -88,7 +88,15 @@ struct AppState {
 
     bool                  showQuickAccess   = true;
     bool                  openOnLaunch      = false;
-    float                 textScale         = 1.0f;
+
+    /* Layout tuning — adjust in options, report values to dev to hardcode */
+    float                 layoutTopRoll     = 0.135f;
+    float                 layoutBottomRoll  = 0.26f;
+    float                 layoutPaddingX    = 58.f;
+    float                 layoutSearchInset = 0.f;
+    float                 layoutAddInset    = 0.f;
+    float                 layoutAddExtraY   = 4.f;
+
     bool                  collapseEnabled   = false;
     float                 collapseDelaySec  = 2.0f;
     float                 floatIconSize     = 64.f;
