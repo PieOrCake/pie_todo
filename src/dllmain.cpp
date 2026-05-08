@@ -672,9 +672,17 @@ static void RenderOptions() {
     }
 
     if (g.layoutEditMode) {
-        ImGui::TextDisabled("Window size");
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("Win W", &g.winW, 100.f, 800.f, "%.0f")) { ImGui::SetWindowSize(WINDOW_NAME, ImVec2(g.winW, g.winH)); MarkDirty(); }
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("Win H", &g.winH, 100.f, 800.f, "%.0f")) { ImGui::SetWindowSize(WINDOW_NAME, ImVec2(g.winW, g.winH)); MarkDirty(); }
+        ImGui::TextDisabled("Window size (aspect-locked)");
+        ImGui::SetNextItemWidth(110.f);
+        if (ImGui::SliderFloat("Win W", &g.winW, 100.f, 800.f, "%.0f")) {
+            g.winH = g.winW * SCROLL_ASPECT;
+            ImGui::SetWindowSize(WINDOW_NAME, ImVec2(g.winW, g.winH)); MarkDirty();
+        }
+        ImGui::SetNextItemWidth(110.f);
+        if (ImGui::SliderFloat("Win H", &g.winH, 100.f, 800.f, "%.0f")) {
+            g.winW = g.winH / SCROLL_ASPECT;
+            ImGui::SetWindowSize(WINDOW_NAME, ImVec2(g.winW, g.winH)); MarkDirty();
+        }
         ImGui::TextDisabled("Drag handle");
         ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("DH Y",  &g.posDragY,   -500.f, 600.f, "%.0f")) MarkDirty();
         ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("DH H",  &g.posDragH,    10.f,  150.f, "%.0f")) MarkDirty();
