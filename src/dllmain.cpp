@@ -110,7 +110,7 @@ static void RenderTodoWindow() {
                 snprintf(dBuf, sizeof(dBuf), "D:%d/%d", g.cachedDailyDone, g.cachedDailyTotal);
                 snprintf(wBuf, sizeof(wBuf), "W:%d/%d", g.cachedWeeklyDone, g.cachedWeeklyTotal);
                 ImFont* font     = ImGui::GetFont();
-                float   fontSize = sz * 0.18f;
+                float   fontSize = sz * 0.15f;
                 float   gap      = fontSize * 0.2f;
                 ImVec2  dSz      = font->CalcTextSizeA(fontSize, FLT_MAX, 0.f, dBuf);
                 ImVec2  wSz      = font->CalcTextSizeA(fontSize, FLT_MAX, 0.f, wBuf);
