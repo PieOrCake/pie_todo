@@ -191,6 +191,7 @@ static void RenderTodoWindow() {
         ImVec2 delta = ImGui::GetIO().MouseDelta;
         g.winX += delta.x;
         g.winY += delta.y;
+        ImGui::SetWindowPos(ImVec2(g.winX, g.winY));
         MarkDirty();
     }
     if (dragHovered && !g.lockPosition)
@@ -668,6 +669,15 @@ static void RenderOptions() {
     }
 
     if (g.layoutEditMode) {
+        ImGui::TextDisabled("Window position");
+        ImGui::SetNextItemWidth(110.f);
+        if (ImGui::SliderFloat("Win X", &g.winX, -500.f, 3000.f, "%.0f")) {
+            ImGui::SetWindowPos(WINDOW_NAME, ImVec2(g.winX, g.winY)); MarkDirty();
+        }
+        ImGui::SetNextItemWidth(110.f);
+        if (ImGui::SliderFloat("Win Y", &g.winY, -500.f, 2000.f, "%.0f")) {
+            ImGui::SetWindowPos(WINDOW_NAME, ImVec2(g.winX, g.winY)); MarkDirty();
+        }
         ImGui::TextDisabled("Window size (aspect-locked)");
         ImGui::SetNextItemWidth(110.f);
         if (ImGui::SliderFloat("Win W", &g.winW, 100.f, 800.f, "%.0f")) {
