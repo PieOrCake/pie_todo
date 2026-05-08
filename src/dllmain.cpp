@@ -228,7 +228,7 @@ static void RenderTodoWindow() {
         /* Reuse persistent row rect vectors instead of allocating every frame */
         g.rowMin.resize(visibleIndices.size());
         g.rowMax.resize(visibleIndices.size());
-        const float repeatColWidth = ImGui::CalcTextSize("Weekly").x + ImGui::GetStyle().ItemSpacing.x * 2.f;
+        const float repeatColWidth = ImGui::CalcTextSize("W").x + ImGui::GetStyle().ItemSpacing.x * 2.f;
 
         for (size_t vi = 0; vi < visibleIndices.size(); vi++) {
             int idx = visibleIndices[vi];
@@ -270,7 +270,7 @@ static void RenderTodoWindow() {
             /* Repeat label right-aligned */
             ImGui::SameLine(winWidth - repeatColWidth);
             ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted(item.repeat == Repeat_Weekly ? "Weekly" : "Daily");
+            ImGui::TextUnformatted(item.repeat == Repeat_Weekly ? "W" : "D");
 
             /* Draw row background highlight for completed tasks (full row height) */
             if (completed) {
