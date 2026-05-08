@@ -108,16 +108,6 @@ void SaveTodos() {
     j["lock_size"] = g.lockSize;
     j["show_quick_access"] = g.showQuickAccess;
     j["open_on_launch"] = g.openOnLaunch;
-    j["pos_drag_y"]      = g.posDragY;
-    j["pos_drag_h"]      = g.posDragH;
-    j["pos_search_x"]    = g.posSearchX;
-    j["pos_search_y"]    = g.posSearchY;
-    j["pos_search_w"]    = g.posSearchW;
-    j["pos_task_x"]      = g.posTaskX;
-    j["pos_task_y"]      = g.posTaskY;
-    j["pos_task_bot"]    = g.posTaskBot;
-    j["pos_add_x"]       = g.posAddX;
-    j["pos_add_y"]       = g.posAddY;
     j["collapse_enabled"] = g.collapseEnabled;
     j["collapse_delay_sec"] = g.collapseDelaySec;
     j["float_icon_size"] = g.floatIconSize;
@@ -148,8 +138,10 @@ void SaveTodos() {
 }
 
 void FlushIfDirty() {
-    if (g.dirty && (ImGui::GetTime() - g.dirtyTimestamp >= DIRTY_SAVE_DELAY))
+    if (g.dirty && (ImGui::GetTime() - g.dirtyTimestamp >= DIRTY_SAVE_DELAY)) {
         SaveTodos();
+        SaveWindowGeometry();
+    }
 }
 
 void LoadTodos() {
@@ -191,16 +183,6 @@ void LoadTodos() {
         g.showQuickAccess = j["show_quick_access"].get<bool>();
     if (j.contains("open_on_launch"))
         g.openOnLaunch = j["open_on_launch"].get<bool>();
-    if (j.contains("pos_drag_y"))      g.posDragY      = j["pos_drag_y"].get<float>();
-    if (j.contains("pos_drag_h"))      g.posDragH      = j["pos_drag_h"].get<float>();
-    if (j.contains("pos_search_x"))    g.posSearchX    = j["pos_search_x"].get<float>();
-    if (j.contains("pos_search_y"))    g.posSearchY    = j["pos_search_y"].get<float>();
-    if (j.contains("pos_search_w"))    g.posSearchW    = j["pos_search_w"].get<float>();
-    if (j.contains("pos_task_x"))      g.posTaskX      = j["pos_task_x"].get<float>();
-    if (j.contains("pos_task_y"))      g.posTaskY      = j["pos_task_y"].get<float>();
-    if (j.contains("pos_task_bot"))    g.posTaskBot    = j["pos_task_bot"].get<float>();
-    if (j.contains("pos_add_x"))       g.posAddX       = j["pos_add_x"].get<float>();
-    if (j.contains("pos_add_y"))       g.posAddY       = j["pos_add_y"].get<float>();
     if (j.contains("collapse_enabled"))
         g.collapseEnabled = j["collapse_enabled"].get<bool>();
     if (j.contains("collapse_delay_sec"))
@@ -239,6 +221,16 @@ void LoadWindowGeometry() {
                 y = j.value("y", 0.f);
                 w = j.value("w", 0.f);
                 h = j.value("h", 0.f);
+                g.posDragY   = j.value("pos_drag_y",   g.posDragY);
+                g.posDragH   = j.value("pos_drag_h",   g.posDragH);
+                g.posSearchX = j.value("pos_search_x", g.posSearchX);
+                g.posSearchY = j.value("pos_search_y", g.posSearchY);
+                g.posSearchW = j.value("pos_search_w", g.posSearchW);
+                g.posTaskX   = j.value("pos_task_x",   g.posTaskX);
+                g.posTaskY   = j.value("pos_task_y",   g.posTaskY);
+                g.posTaskBot = j.value("pos_task_bot",  g.posTaskBot);
+                g.posAddX    = j.value("pos_add_x",    g.posAddX);
+                g.posAddY    = j.value("pos_add_y",    g.posAddY);
                 loaded = true;
             } catch (...) {}
         }
@@ -276,6 +268,16 @@ void SaveWindowGeometry() {
     j["y"] = g.winY;
     j["w"] = g.winW;
     j["h"] = g.winH;
+    j["pos_drag_y"]   = g.posDragY;
+    j["pos_drag_h"]   = g.posDragH;
+    j["pos_search_x"] = g.posSearchX;
+    j["pos_search_y"] = g.posSearchY;
+    j["pos_search_w"] = g.posSearchW;
+    j["pos_task_x"]   = g.posTaskX;
+    j["pos_task_y"]   = g.posTaskY;
+    j["pos_task_bot"] = g.posTaskBot;
+    j["pos_add_x"]    = g.posAddX;
+    j["pos_add_y"]    = g.posAddY;
     std::ofstream f(path);
     if (f) f << j.dump(2) << "\n";
 }
