@@ -187,13 +187,13 @@ static void RenderTodoWindow() {
     ImGui::SetCursorPos(ImVec2(0.f, g.posDragY));
     ImGui::InvisibleButton("##drag", ImVec2(ImGui::GetWindowWidth(), g.posDragH));
     bool dragHovered = ImGui::IsItemHovered();
-    if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0) && !g.lockPosition && !g.layoutEditMode) {
+    if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0) && !g.lockPosition) {
         ImVec2 delta = ImGui::GetIO().MouseDelta;
         g.winX += delta.x;
         g.winY += delta.y;
         ImGui::SetWindowPos(ImVec2(g.winX, g.winY));
     }
-    if (dragHovered && !g.lockPosition && !g.layoutEditMode)
+    if (dragHovered && !g.lockPosition)
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
     {
         ImDrawList* fdl = ImGui::GetForegroundDrawList();
