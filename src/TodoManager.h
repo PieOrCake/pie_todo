@@ -60,7 +60,6 @@ struct AppState {
 
     std::string           deleteConfirmUid;
     bool                  deletePopupPending = false;
-    bool                  addPopupPending    = false;
 
     double                lastResetCheckTime = 0.0;
     int                   dragSourceIdx      = -1;

@@ -24,10 +24,11 @@ static const char* ICON_WINDOW_NAME   = "##PieTodoIcon";
 static const char* FLOAT_ICON_TEX_ID  = "PieTodo_float_icon";
 
 static constexpr float ROW_PADDING        = 8.f;
-static constexpr float COMBO_WIDTH        = 80.f;
+static constexpr float INPUT_WIDTH        = 100.f;
+static constexpr float COMBO_WIDTH        = 72.f;
 static constexpr float EDIT_FIELD_WIDTH   = 300.f;
 static constexpr float WRAP_WIDTH         = 280.f;
-static constexpr float DRAG_HANDLE_HEIGHT = 92.f;
+static constexpr float DRAG_HANDLE_HEIGHT = 65.f;
 static constexpr float RESIZE_GRIP_SIZE   = 16.f;
 
 /* ── Forward declarations ──────────────────────────────────────────────────── */
@@ -188,7 +189,7 @@ static void RenderTodoWindow() {
     float winH       = ImGui::GetWindowHeight();
     float bottomRoll = winH * 0.26f;
 
-    /* ── Top roll: drag handle + search box ─────────────────────────────────── */
+    /* ── Top roll: drag handle + narrowed centred search box ───────────────── */
     ImGui::SetCursorPos(ImVec2(0.f, 0.f));
     ImGui::InvisibleButton("##drag", ImVec2(ImGui::GetWindowWidth(), DRAG_HANDLE_HEIGHT));
     if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0) && !g.lockPosition) {
@@ -204,8 +205,12 @@ static void RenderTodoWindow() {
         char searchBuf[256];
         strncpy(searchBuf, g.searchFilter.c_str(), sizeof(searchBuf) - 1);
         searchBuf[sizeof(searchBuf) - 1] = '\0';
-        ImGui::SetNextItemWidth(-ImGui::CalcTextSize("X").x - ImGui::GetStyle().ItemSpacing.x - ImGui::GetStyle().FramePadding.x * 2.f);
-        if (ImGui::InputTextWithHint("##search", "Search tasks...", searchBuf, sizeof(searchBuf)))
+        float xBtnW  = ImGui::CalcTextSize("X").x + ImGui::GetStyle().FramePadding.x * 2.f;
+        float searchW = 120.f;
+        float totalW  = searchW + ImGui::GetStyle().ItemSpacing.x + xBtnW;
+        ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - totalW) * 0.5f);
+        ImGui::SetNextItemWidth(searchW);
+        if (ImGui::InputTextWithHint("##search", "Search...", searchBuf, sizeof(searchBuf)))
             g.searchFilter = searchBuf;
         ImGui::SameLine();
         if (ImGui::Button("X")) g.searchFilter.clear();
@@ -440,39 +445,30 @@ static void RenderTodoWindow() {
         ImGui::EndPopup();
     }
 
-    /* ── Bottom roll: Add New Task button ──────────────────────────────────── */
+    /* ── Bottom roll: inline add task row, centred ─────────────────────────── */
     {
-        float btnW = ImGui::CalcTextSize("Add New Task").x + ImGui::GetStyle().FramePadding.x * 2.f + 16.f;
-        ImGui::SetCursorPosX((ImGui::GetWindowWidth() - btnW) * 0.5f);
-        if (ImGui::Button("Add New Task"))
-            g.addPopupPending = true;
-    }
+        float addBtnW   = ImGui::CalcTextSize("Add").x + ImGui::GetStyle().FramePadding.x * 2.f;
+        float totalW    = INPUT_WIDTH + ImGui::GetStyle().ItemSpacing.x
+                        + COMBO_WIDTH + ImGui::GetStyle().ItemSpacing.x + addBtnW;
+        ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - totalW) * 0.5f);
 
-    /* Add New Task modal */
-    if (g.addPopupPending) {
-        ImGui::OpenPopup("Add New Task");
-        g.addPopupPending = false;
-    }
-    if (ImGui::BeginPopupModal("Add New Task", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         char newBuf[512];
         strncpy(newBuf, g.newTaskText.c_str(), sizeof(newBuf) - 1);
         newBuf[sizeof(newBuf) - 1] = '\0';
-        ImGui::SetNextItemWidth(EDIT_FIELD_WIDTH);
-        bool enter = ImGui::InputText("Task", newBuf, sizeof(newBuf), ImGuiInputTextFlags_EnterReturnsTrue);
-        g.newTaskText = newBuf;
-        const char* repeatLabels[] = { "Daily", "Weekly" };
-        ImGui::Combo("Repeat", (int*)&g.newTaskRepeat, repeatLabels, 2);
-        if (ImGui::Button("Add") || enter) {
+        ImGui::SetNextItemWidth(INPUT_WIDTH);
+        if (ImGui::InputTextWithHint("##newtask", "New task...", newBuf, sizeof(newBuf),
+                                     ImGuiInputTextFlags_EnterReturnsTrue)) {
+            g.newTaskText = newBuf;
             AddNewTodo();
-            ImGui::CloseCurrentPopup();
+        } else {
+            g.newTaskText = newBuf;
         }
         ImGui::SameLine();
-        if (ImGui::Button("Cancel")) {
-            g.newTaskText.clear();
-            g.newTaskRepeat = Repeat_Daily;
-            ImGui::CloseCurrentPopup();
-        }
-        ImGui::EndPopup();
+        const char* repeatLabels[] = { "Daily", "Weekly" };
+        ImGui::SetNextItemWidth(COMBO_WIDTH);
+        ImGui::Combo("##repeat", (int*)&g.newTaskRepeat, repeatLabels, 2);
+        ImGui::SameLine();
+        if (ImGui::Button("Add")) AddNewTodo();
     }
 
     /* ── Resize grip (bottom-right corner, visible on window hover) ─────────── */
