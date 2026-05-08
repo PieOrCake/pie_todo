@@ -463,8 +463,10 @@ static void RenderOptions() {
         g.completedMode = CompletedMode_Hide;
         MarkDirty();
     }
-    ImGui::Spacing();
-    ImGui::TextWrapped("Show completed tasks with a green row (Colour) or hide them (Hide).");
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Show completed tasks with a green row (Colour) or hide them (Hide).");
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -473,7 +475,10 @@ static void RenderOptions() {
         MarkDirty();
     if (ImGui::Checkbox("Lock window size", &g.lockSize))
         MarkDirty();
-    ImGui::TextWrapped("Prevent the window from being moved or resized.");
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Prevent the window from being moved or resized.");
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -485,14 +490,20 @@ static void RenderOptions() {
             APIDefs->QuickAccess_Remove(QA_ID);
         MarkDirty();
     }
-    ImGui::TextWrapped("Show or hide the shortcut icon in the Quick Access bar.");
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Show or hide the shortcut icon in the Quick Access bar.");
 
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
     if (ImGui::Checkbox("Open on launch", &g.openOnLaunch))
         MarkDirty();
-    ImGui::TextWrapped("Automatically show the window when the game starts.");
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Automatically show the window when the game starts.");
 
     ImGui::Spacing();
     ImGui::Separator();
