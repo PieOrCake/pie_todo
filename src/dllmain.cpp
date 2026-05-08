@@ -475,60 +475,6 @@ static void RenderTodoWindow() {
         if (ImGui::Button("+")) AddNewTodo();
     }
 
-    /* ── Resize grip (bottom-right corner, visible on window hover) ─────────── */
-    {
-        static bool s_resizing = false;
-        ImVec2 wpos = ImGui::GetWindowPos();
-        ImVec2 wsz  = ImGui::GetWindowSize();
-        float  gs = g.posResizeSize;
-        ImVec2 gripMax(wpos.x + wsz.x + g.posResizeX, wpos.y + wsz.y + g.posResizeY);
-        ImVec2 gripMin(gripMax.x - gs, gripMax.y - gs);
-        ImVec2 mouse = ImGui::GetIO().MousePos;
-        bool overGrip = mouse.x >= gripMin.x && mouse.x < gripMax.x
-                     && mouse.y >= gripMin.y && mouse.y < gripMax.y;
-        bool winHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows
-                                                | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
-
-        {
-            ImDrawList* fdl = ImGui::GetForegroundDrawList();
-            ImU32 gripCol = IM_COL32(80, 40, 10, (overGrip || s_resizing) ? 200 : 80);
-            /* Filled corner triangle */
-            fdl->AddTriangleFilled(
-                ImVec2(gripMax.x,      gripMax.y - gs),
-                ImVec2(gripMax.x - gs, gripMax.y),
-                ImVec2(gripMax.x,      gripMax.y), gripCol);
-            ImU32 lineCol = IM_COL32(200, 160, 100, (overGrip || s_resizing) ? 220 : 120);
-            for (int i = 1; i <= 3; i++) {
-                float o = i * (gs / 4.f);
-                fdl->AddLine(ImVec2(gripMax.x - o,               gripMax.y),
-                             ImVec2(gripMax.x,                   gripMax.y - o), lineCol, 1.5f);
-            }
-        }
-
-        if (overGrip && ImGui::GetIO().MouseClicked[0])
-            s_resizing = true;
-        if (!ImGui::GetIO().MouseDown[0])
-            s_resizing = false;
-        if (s_resizing) {
-            ImVec2 delta = ImGui::GetIO().MouseDelta;
-            float newW = std::max(MIN_WINDOW_DIM, g.winW + delta.x);
-            float newH = std::max(MIN_WINDOW_DIM, g.winH + delta.y);
-            float sy = newH / g.winH;
-            g.winW = newW;
-            g.winH = newH;
-            ImGui::SetWindowSize(ImVec2(g.winW, g.winH));
-            /* Scale Y positions with height — X positions left alone because
-               taskW = winW - 8 - 2*posTaskX already adapts naturally to width */
-            g.posDragY   *= sy; g.posDragH   *= sy;
-            g.posSearchY *= sy;
-            g.posTaskY   *= sy; g.posTaskBot *= sy;
-            g.posAddY    *= sy;
-            MarkDirty();
-            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNWSE);
-        } else if (overGrip) {
-            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNWSE);
-        }
-    }
 
     /* Collapse timer logic */
     if (g.collapseEnabled) {
@@ -562,14 +508,18 @@ static void RenderTodoWindow() {
         float  pad  = 4.f;
         const float RC = 10.f; /* resize corner hit size */
 
+        /* Window boundary */
+        fdl->AddRect(wpos, ImVec2(wpos.x + winW, wpos.y + winH),
+                     IM_COL32(255, 80, 80, 200), 0.f, 0, 2.f);
+
         struct Handle {
             const char* label;
             ImU32       col;
             float       sx, sy, sw, sh;
             float*      px;
             float*      py;
-            float*      pw; /* resizable width field, or nullptr */
-            float*      ph; /* resizable height/bottom field, or nullptr */
+            float*      pw;
+            float*      ph;
         } handles[] = {
             { "DRAG",   IM_COL32(60, 120, 255, 120),
               wpos.x,             wpos.y + pad + g.posDragY,     winW,              g.posDragH,
@@ -583,14 +533,10 @@ static void RenderTodoWindow() {
             { "ADD",    IM_COL32(180, 60, 220, 120),
               wpos.x + pad + g.posAddX,    wpos.y + pad + g.posAddY,    160.f, 22.f,
               &g.posAddX,         &g.posAddY,    nullptr,          nullptr },
-            { "RESIZE", IM_COL32(220, 60, 60,  120),
-              wpos.x + winW + g.posResizeX - g.posResizeSize, wpos.y + winH + g.posResizeY - g.posResizeSize,
-              g.posResizeSize, g.posResizeSize,
-              &g.posResizeX,      &g.posResizeY, &g.posResizeSize, nullptr },
         };
 
         ImVec2 mouse = ImGui::GetIO().MousePos;
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 4; i++) {
             Handle& h = handles[i];
             bool over = mouse.x >= h.sx && mouse.x < h.sx + h.sw
                      && mouse.y >= h.sy && mouse.y < h.sy + h.sh;
@@ -610,12 +556,9 @@ static void RenderTodoWindow() {
                     } else {
                         if (h.px) *h.px += d.x;
                         if (h.py) *h.py += d.y;
-                        /* Clamp window-relative positions to stay inside the window (skip RESIZE which uses corner offsets) */
-                        if (i < 4) {
-                            auto fclamp = [](float v, float lo, float hi) { return v < lo ? lo : v > hi ? hi : v; };
-                            if (h.px) *h.px = fclamp(*h.px, 0.f, winW - 4.f);
-                            if (h.py) *h.py = fclamp(*h.py, 0.f, winH - 4.f);
-                        }
+                        auto fclamp = [](float v, float lo, float hi) { return v < lo ? lo : v > hi ? hi : v; };
+                        if (h.px) *h.px = fclamp(*h.px, 0.f, winW - 4.f);
+                        if (h.py) *h.py = fclamp(*h.py, 0.f, winH - 4.f);
                     }
                     MarkDirty();
                 } else {
@@ -628,7 +571,6 @@ static void RenderTodoWindow() {
             fdl->AddRect(ImVec2(h.sx, h.sy), ImVec2(h.sx+h.sw, h.sy+h.sh),
                          IM_COL32(255,255,255,200), 3.f, 0, 1.5f);
             fdl->AddText(ImVec2(h.sx+4.f, h.sy+4.f), IM_COL32(255,255,255,255), h.label);
-            /* Resize corner indicator */
             if (h.pw || h.ph) {
                 ImU32 cornerCol = (active && s_dragResize)
                     ? IM_COL32(255, 255, 100, 240)
@@ -726,11 +668,13 @@ static void RenderOptions() {
         g.posSearchX = 94.f; g.posSearchY = 74.f; g.posSearchW = 110.f;
         g.posTaskX = 72.f; g.posTaskY = 120.f; g.posTaskBot = 298.f;
         g.posAddX = 70.f; g.posAddY = 323.f;
-        g.posResizeX = -51.f; g.posResizeY = -42.f; g.posResizeSize = 28.f;
         MarkDirty();
     }
 
     if (g.layoutEditMode) {
+        ImGui::TextDisabled("Window size");
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("Win W", &g.winW, 100.f, 800.f, "%.0f")) { ImGui::SetWindowSize(WINDOW_NAME, ImVec2(g.winW, g.winH)); MarkDirty(); }
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("Win H", &g.winH, 100.f, 800.f, "%.0f")) { ImGui::SetWindowSize(WINDOW_NAME, ImVec2(g.winW, g.winH)); MarkDirty(); }
         ImGui::TextDisabled("Drag handle");
         ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("DH Y",  &g.posDragY,   -500.f, 600.f, "%.0f")) MarkDirty();
         ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("DH H",  &g.posDragH,    10.f,  150.f, "%.0f")) MarkDirty();
@@ -745,10 +689,6 @@ static void RenderOptions() {
         ImGui::TextDisabled("Add row");
         ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("AR X",  &g.posAddX,    -500.f, 600.f, "%.0f")) MarkDirty();
         ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("AR Y",  &g.posAddY,    -500.f, 800.f, "%.0f")) MarkDirty();
-        ImGui::TextDisabled("Resize grip");
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("RG X",  &g.posResizeX, -500.f, 100.f, "%.0f")) MarkDirty();
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("RG Y",  &g.posResizeY, -500.f, 100.f, "%.0f")) MarkDirty();
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("RG Sz", &g.posResizeSize, 10.f,  80.f, "%.0f")) MarkDirty();
     }
 
     ImGui::Spacing();

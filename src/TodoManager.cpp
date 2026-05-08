@@ -118,9 +118,6 @@ void SaveTodos() {
     j["pos_task_bot"]    = g.posTaskBot;
     j["pos_add_x"]       = g.posAddX;
     j["pos_add_y"]       = g.posAddY;
-    j["pos_resize_x"]    = g.posResizeX;
-    j["pos_resize_y"]    = g.posResizeY;
-    j["pos_resize_size"] = g.posResizeSize;
     j["collapse_enabled"] = g.collapseEnabled;
     j["collapse_delay_sec"] = g.collapseDelaySec;
     j["float_icon_size"] = g.floatIconSize;
@@ -204,9 +201,6 @@ void LoadTodos() {
     if (j.contains("pos_task_bot"))    g.posTaskBot    = j["pos_task_bot"].get<float>();
     if (j.contains("pos_add_x"))       g.posAddX       = j["pos_add_x"].get<float>();
     if (j.contains("pos_add_y"))       g.posAddY       = j["pos_add_y"].get<float>();
-    if (j.contains("pos_resize_x"))    g.posResizeX    = j["pos_resize_x"].get<float>();
-    if (j.contains("pos_resize_y"))    g.posResizeY    = j["pos_resize_y"].get<float>();
-    if (j.contains("pos_resize_size")) g.posResizeSize = j["pos_resize_size"].get<float>();
     if (j.contains("collapse_enabled"))
         g.collapseEnabled = j["collapse_enabled"].get<bool>();
     if (j.contains("collapse_delay_sec"))

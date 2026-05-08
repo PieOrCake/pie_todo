@@ -100,9 +100,6 @@ struct AppState {
     float                 posTaskBot    = 298.f;
     float                 posAddX       =  70.f;
     float                 posAddY       = 323.f;
-    float                 posResizeX    = -51.f;
-    float                 posResizeY    = -42.f;
-    float                 posResizeSize =  28.f;
     bool                  layoutEditMode = false;
 
     bool                  collapseEnabled   = false;
