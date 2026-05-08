@@ -90,6 +90,7 @@ struct AppState {
     bool                  openOnLaunch      = false;
     bool                  collapseEnabled   = false;
     float                 collapseDelaySec  = 2.0f;
+    float                 floatIconSize     = 64.f;
     bool                  expandOnClick     = false;
     bool                  collapsed         = false;
     double                lastHoverTime     = 0.0;

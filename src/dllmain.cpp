@@ -89,9 +89,9 @@ static void RenderTodoWindow() {
 
     /* Collapsed icon mode */
     if (g.collapseEnabled && g.collapsed) {
-        static constexpr float ICON_SIZE = 64.f;
+        const float sz = g.floatIconSize;
         ImGui::SetNextWindowPos(ImVec2(g.winX, g.winY), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(ICON_SIZE, ICON_SIZE));
+        ImGui::SetNextWindowSize(ImVec2(sz, sz));
         ImGuiWindowFlags iconFlags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize
             | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBackground
             | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus;
@@ -102,20 +102,24 @@ static void RenderTodoWindow() {
                 ImDrawList* dl  = ImGui::GetWindowDrawList();
                 ImDrawList* fdl = ImGui::GetForegroundDrawList();
                 ImVec2 p0(wp.x, wp.y);
-                ImVec2 p1(wp.x + ICON_SIZE, wp.y + ICON_SIZE);
+                ImVec2 p1(wp.x + sz, wp.y + sz);
                 dl->AddImage((ImTextureID)tex->Resource, p0, p1);
 
-                /* Completion text overlaid on lower portion of icon */
+                /* Completion text centred on icon, scaled with icon size */
                 char dBuf[16], wBuf[16];
                 snprintf(dBuf, sizeof(dBuf), "D:%d/%d", g.cachedDailyDone, g.cachedDailyTotal);
                 snprintf(wBuf, sizeof(wBuf), "W:%d/%d", g.cachedWeeklyDone, g.cachedWeeklyTotal);
-                ImVec2 dSz = ImGui::CalcTextSize(dBuf);
-                ImVec2 wSz = ImGui::CalcTextSize(wBuf);
-                float lineH = dSz.y;
-                float stripY = p1.y - lineH * 2.f - 4.f;
-                fdl->AddRectFilled(ImVec2(p0.x, stripY), p1, IM_COL32(0, 0, 0, 160));
-                fdl->AddText(ImVec2(p0.x + (ICON_SIZE - dSz.x) * 0.5f, stripY + 1.f),          IM_COL32(255, 255, 255, 255), dBuf);
-                fdl->AddText(ImVec2(p0.x + (ICON_SIZE - wSz.x) * 0.5f, stripY + lineH + 1.f),  IM_COL32(255, 255, 255, 255), wBuf);
+                ImFont* font     = ImGui::GetFont();
+                float   fontSize = sz * 0.18f;
+                float   gap      = fontSize * 0.2f;
+                ImVec2  dSz      = font->CalcTextSizeA(fontSize, FLT_MAX, 0.f, dBuf);
+                ImVec2  wSz      = font->CalcTextSizeA(fontSize, FLT_MAX, 0.f, wBuf);
+                float   totalH   = dSz.y + gap + wSz.y;
+                float   centreX  = p0.x + sz * 0.5f;
+                float   startY   = p0.y + (sz - totalH) * 0.5f;
+                ImU32   textCol  = IM_COL32(40, 20, 10, 220);
+                fdl->AddText(font, fontSize, ImVec2(centreX - dSz.x * 0.5f, startY),              textCol, dBuf);
+                fdl->AddText(font, fontSize, ImVec2(centreX - wSz.x * 0.5f, startY + dSz.y + gap), textCol, wBuf);
             }
 
             if (ImGui::IsWindowHovered()) {
@@ -527,6 +531,11 @@ static void RenderOptions() {
         if (ImGui::InputFloat("Delay (seconds)", &g.collapseDelaySec, 0.5f, 1.0f, "%.1f")) {
             if (g.collapseDelaySec < 0.5f) g.collapseDelaySec = 0.5f;
             if (g.collapseDelaySec > 30.0f) g.collapseDelaySec = 30.0f;
+            MarkDirty();
+        }
+        ImGui::SetNextItemWidth(100.f);
+        if (ImGui::SliderFloat("Icon size", &g.floatIconSize, 32.f, 128.f, "%.0f")) {
+            g.floatIconSize = std::max(32.f, std::min(g.floatIconSize, 128.f));
             MarkDirty();
         }
         ImGui::Text("Expand icon on:");

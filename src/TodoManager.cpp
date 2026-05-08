@@ -110,6 +110,7 @@ void SaveTodos() {
     j["open_on_launch"] = g.openOnLaunch;
     j["collapse_enabled"] = g.collapseEnabled;
     j["collapse_delay_sec"] = g.collapseDelaySec;
+    j["float_icon_size"] = g.floatIconSize;
     j["expand_on_click"] = g.expandOnClick;
     if (!g.lastDailyReset.empty())  j["last_daily_reset"]  = g.lastDailyReset;
     if (!g.lastWeeklyReset.empty()) j["last_weekly_reset"] = g.lastWeeklyReset;
@@ -184,6 +185,8 @@ void LoadTodos() {
         g.collapseEnabled = j["collapse_enabled"].get<bool>();
     if (j.contains("collapse_delay_sec"))
         g.collapseDelaySec = j["collapse_delay_sec"].get<float>();
+    if (j.contains("float_icon_size"))
+        g.floatIconSize = j["float_icon_size"].get<float>();
     if (j.contains("expand_on_click"))
         g.expandOnClick = j["expand_on_click"].get<bool>();
     if (j.contains("last_daily_reset"))
