@@ -24,7 +24,7 @@ static const char* ICON_WINDOW_NAME   = "##PieTodoIcon";
 static const char* FLOAT_ICON_TEX_ID  = "PieTodo_float_icon_v2";
 
 static constexpr float ROW_PADDING        = 8.f;
-static constexpr float INPUT_WIDTH        = 155.f;
+static constexpr float INPUT_WIDTH        = 132.f;
 static constexpr float COMBO_WIDTH        = 64.f;
 static constexpr float EDIT_FIELD_WIDTH   = 300.f;
 static constexpr float WRAP_WIDTH         = 280.f;
