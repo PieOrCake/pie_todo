@@ -227,6 +227,7 @@ void LoadWindowGeometry() {
                 g.posSearchY = j.value("pos_search_y", g.posSearchY);
                 g.posSearchW = j.value("pos_search_w", g.posSearchW);
                 g.posTaskX   = j.value("pos_task_x",   g.posTaskX);
+                g.posTaskW   = j.value("pos_task_w",   g.posTaskW);
                 g.posTaskY   = j.value("pos_task_y",   g.posTaskY);
                 g.posTaskBot = j.value("pos_task_bot",  g.posTaskBot);
                 g.posAddX    = j.value("pos_add_x",    g.posAddX);
@@ -274,6 +275,7 @@ void SaveWindowGeometry() {
     j["pos_search_y"] = g.posSearchY;
     j["pos_search_w"] = g.posSearchW;
     j["pos_task_x"]   = g.posTaskX;
+    j["pos_task_w"]   = g.posTaskW;
     j["pos_task_y"]   = g.posTaskY;
     j["pos_task_bot"] = g.posTaskBot;
     j["pos_add_x"]    = g.posAddX;

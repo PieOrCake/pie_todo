@@ -97,6 +97,7 @@ struct AppState {
     float                 posSearchY    =  40.f;
     float                 posSearchW    = 189.f;
     float                 posTaskX      =  50.f;
+    float                 posTaskW      = 242.f;
     float                 posTaskY      =  97.f;
     float                 posTaskBot    = 320.f;
     float                 posAddX       =  82.f;

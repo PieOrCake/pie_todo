@@ -183,17 +183,31 @@ static void RenderTodoWindow() {
         }
     }
 
-    /* ── Drag handle (direct IO, same pattern as layout overlays) ───────────── */
+    /* ── Whole-window drag (excludes interactive regions) ───────────────────── */
     {
         static bool s_winDragging = false;
-        ImVec2 wp   = ImGui::GetWindowPos();
-        float  ww   = ImGui::GetWindowWidth();
-        ImVec2 dMin(wp.x,      wp.y + g.posDragY);
-        ImVec2 dMax(wp.x + ww, wp.y + g.posDragY + g.posDragH);
+        ImVec2 wp    = ImGui::GetWindowPos();
+        float  ww    = ImGui::GetWindowWidth();
+        float  wh    = ImGui::GetWindowHeight();
+        float  pad   = 4.f;
         ImVec2 mouse = ImGui::GetIO().MousePos;
-        bool overDrag = mouse.x >= dMin.x && mouse.x < dMax.x
-                     && mouse.y >= dMin.y && mouse.y < dMax.y;
-        if (overDrag && ImGui::GetIO().MouseClicked[0] && !g.lockPosition)
+
+        bool overWindow = mouse.x >= wp.x && mouse.x < wp.x + ww
+                       && mouse.y >= wp.y && mouse.y < wp.y + wh;
+
+        /* Exclude interactive regions */
+        auto inRect = [&](float x0, float y0, float x1, float y1) {
+            return mouse.x >= x0 && mouse.x < x1 && mouse.y >= y0 && mouse.y < y1;
+        };
+        bool overInteractive =
+            inRect(wp.x + pad + g.posSearchX, wp.y + pad + g.posSearchY,
+                   wp.x + pad + g.posSearchX + g.posSearchW + 35.f, wp.y + pad + g.posSearchY + 26.f) ||
+            inRect(wp.x + pad + g.posTaskX,   wp.y + pad + g.posTaskY,
+                   wp.x + pad + g.posTaskX + g.posTaskW, wp.y + pad + g.posTaskBot) ||
+            inRect(wp.x + pad + g.posAddX,    wp.y + pad + g.posAddY,
+                   wp.x + pad + g.posAddX + 200.f, wp.y + pad + g.posAddY + 26.f);
+
+        if (overWindow && !overInteractive && ImGui::GetIO().MouseClicked[0] && !g.lockPosition)
             s_winDragging = true;
         if (!ImGui::GetIO().MouseDown[0])
             s_winDragging = false;
@@ -204,21 +218,8 @@ static void RenderTodoWindow() {
             ImGui::SetWindowPos(ImVec2(g.winX, g.winY));
             MarkDirty();
         }
-        if (overDrag && !g.lockPosition)
+        if (overWindow && !overInteractive && !g.lockPosition)
             ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
-    }
-    {
-        ImDrawList* fdl = ImGui::GetForegroundDrawList();
-        ImVec2 wp = ImGui::GetWindowPos();
-        float  ww = ImGui::GetWindowWidth();
-        float cx = wp.x + ww * 0.5f;
-        float cy = wp.y + 4.f + g.posDragY + g.posDragH * 0.5f;
-        ImVec2 mouse = ImGui::GetIO().MousePos;
-        bool overDots = mouse.x >= wp.x && mouse.x < wp.x + ww
-                     && mouse.y >= wp.y + g.posDragY && mouse.y < wp.y + g.posDragY + g.posDragH;
-        ImU32 dotCol = IM_COL32(80, 40, 10, overDots ? 180 : 80);
-        for (int i = -2; i <= 2; i++)
-            fdl->AddCircleFilled(ImVec2(cx + i * 6.f, cy), 2.5f, dotCol);
     }
 
     /* ── Search bar ─────────────────────────────────────────────────────────── */
@@ -239,7 +240,7 @@ static void RenderTodoWindow() {
 
     /* ── Task list ──────────────────────────────────────────────────────────── */
     {
-        float taskW = ImGui::GetWindowWidth() - 8.f - 2.f * g.posTaskX;
+        float taskW = g.posTaskW;
         float taskH = g.posTaskBot - g.posTaskY;
         ImGui::SetCursorPos(ImVec2(g.posTaskX, g.posTaskY));
         ImGui::SetNextWindowBgAlpha(0.f);
@@ -539,8 +540,8 @@ static void RenderTodoWindow() {
               wpos.x + pad + g.posSearchX, wpos.y + pad + g.posSearchY, g.posSearchW + 30.f, 22.f,
               &g.posSearchX,      &g.posSearchY, &g.posSearchW,    nullptr },
             { "TASKS",  IM_COL32(220, 160, 40, 100),
-              wpos.x + pad + g.posTaskX,   wpos.y + pad + g.posTaskY,   winW - 8.f - 2.f*g.posTaskX, g.posTaskBot - g.posTaskY,
-              &g.posTaskX,        &g.posTaskY,   nullptr,          &g.posTaskBot },
+              wpos.x + pad + g.posTaskX,   wpos.y + pad + g.posTaskY,   g.posTaskW, g.posTaskBot - g.posTaskY,
+              &g.posTaskX,        &g.posTaskY,   &g.posTaskW,      &g.posTaskBot },
             { "ADD",    IM_COL32(180, 60, 220, 120),
               wpos.x + pad + g.posAddX,    wpos.y + pad + g.posAddY,    160.f, 22.f,
               &g.posAddX,         &g.posAddY,    nullptr,          nullptr },
@@ -677,7 +678,7 @@ static void RenderOptions() {
     if (ImGui::SmallButton("Reset layout")) {
         g.posDragY = 6.f;  g.posDragH = 29.f;
         g.posSearchX = 82.f; g.posSearchY = 40.f; g.posSearchW = 189.f;
-        g.posTaskX = 50.f; g.posTaskY = 97.f; g.posTaskBot = 320.f;
+        g.posTaskX = 50.f; g.posTaskW = 242.f; g.posTaskY = 97.f; g.posTaskBot = 320.f;
         g.posAddX = 82.f; g.posAddY = 349.f;
         g.winW = DEFAULT_WINDOW_W; g.winH = DEFAULT_WINDOW_H;
         MarkDirty();
@@ -712,9 +713,10 @@ static void RenderOptions() {
         ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("SR Y",  &g.posSearchY, -500.f, 600.f, "%.0f")) MarkDirty();
         ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("SR W",  &g.posSearchW,   30.f, 300.f, "%.0f")) MarkDirty();
         ImGui::TextDisabled("Task list");
-        ImGui::SetNextItemWidth(200.f); if (ImGui::SliderFloat("Left margin (left/right)", &g.posTaskX, 0.f, 200.f, "%.0f")) MarkDirty();
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("TL Y",  &g.posTaskY,   -500.f, 600.f, "%.0f")) MarkDirty();
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("TL Bot",&g.posTaskBot,    50.f, 800.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("TL X",  &g.posTaskX,     0.f, 300.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("TL W",  &g.posTaskW,    50.f, 600.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("TL Y",  &g.posTaskY,  -500.f, 600.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("TL Bot",&g.posTaskBot,   50.f, 800.f, "%.0f")) MarkDirty();
         ImGui::TextDisabled("Add row");
         ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("AR X",  &g.posAddX,    -500.f, 600.f, "%.0f")) MarkDirty();
         ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("AR Y",  &g.posAddY,    -500.f, 800.f, "%.0f")) MarkDirty();
