@@ -484,6 +484,11 @@ static void RenderOptions() {
         if (!g.collapseEnabled) g.collapsed = false;
         MarkDirty();
     }
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("The window collapses to an icon after the mouse leaves.\nHover or click the icon to expand.");
+    }
     if (g.collapseEnabled) {
         ImGui::SetNextItemWidth(100.f);
         if (ImGui::InputFloat("Delay (seconds)", &g.collapseDelaySec, 0.5f, 1.0f, "%.1f")) {
@@ -503,7 +508,6 @@ static void RenderOptions() {
             MarkDirty();
         }
     }
-    ImGui::TextWrapped("When enabled, the window collapses to an icon after the mouse leaves. Hover or click the icon to expand.");
 }
 
 /* ── Addon lifecycle ───────────────────────────────────────────────────────── */
