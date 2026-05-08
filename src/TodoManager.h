@@ -89,19 +89,21 @@ struct AppState {
     bool                  showQuickAccess   = true;
     bool                  openOnLaunch      = false;
 
-    /* Layout tuning — adjust in options, report values to dev to hardcode */
-    float                 layoutTopRoll     = 0.135f;
-    float                 layoutBottomRoll  = 0.26f;
-    float                 layoutPaddingLeft = 58.f;
-    float                 layoutPaddingRight= 30.f;
-    float                 layoutSearchInset = 0.f;
-    float                 layoutAddInset    = 0.f;
-    float                 layoutAddExtraY   = 4.f;
-    float                 layoutDragHandle  = 65.f;
-    float                 layoutDragY       = 0.f;
-    float                 layoutResizeGrip  = 28.f;
-    float                 layoutResizeOffX  = 0.f;
-    float                 layoutResizeOffY  = 0.f;
+    /* Element positions — all in window content space (px from content origin) */
+    float                 posDragY      =   8.f;
+    float                 posDragH      =  48.f;
+    float                 posSearchX    = 180.f;
+    float                 posSearchY    =  10.f;
+    float                 posSearchW    = 110.f;
+    float                 posTaskX      =  18.f;
+    float                 posTaskY      =  64.f;
+    float                 posTaskBot    = 354.f;
+    float                 posAddX       = 150.f;
+    float                 posAddY       = 368.f;
+    float                 posResizeX    =   0.f;
+    float                 posResizeY    =   0.f;
+    float                 posResizeSize =  28.f;
+    bool                  layoutEditMode = false;
 
     bool                  collapseEnabled   = false;
     float                 collapseDelaySec  = 2.0f;

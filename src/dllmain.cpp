@@ -144,7 +144,7 @@ static void RenderTodoWindow() {
     }
     ImGuiWindowFlags wflags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBackground
                             | ImGuiWindowFlags_NoResize   | ImGuiWindowFlags_NoScrollbar;
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(g.layoutPaddingRight, 6.f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(4.f, 4.f));
     if (!ImGui::Begin(WINDOW_NAME, nullptr, wflags)) {
         ImGui::PopStyleVar();
         ImGui::End();
@@ -172,12 +172,7 @@ static void RenderTodoWindow() {
     ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, IM_COL32(120, 80,  40,  220));
     static constexpr int SEPIA_COLOUR_COUNT = 17;
 
-    /* Auto-scale font proportionally to window width */
     ImGui::SetWindowFontScale(ImGui::GetWindowWidth() / DEFAULT_WINDOW_W);
-
-    /* Extra left indent (left roll is wider than right) */
-    float extraLeft = g.layoutPaddingLeft - g.layoutPaddingRight;
-    if (extraLeft > 0.f) ImGui::Indent(extraLeft);
 
     /* ── Background image ───────────────────────────────────────────────────── */
     {
@@ -189,41 +184,35 @@ static void RenderTodoWindow() {
                 wp, ImVec2(wp.x + wsz.x, wp.y + wsz.y));
     }
 
-    /* ── Zone heights (proportional to scroll art) ──────────────────────────── */
-    float winH       = ImGui::GetWindowHeight();
-    float bottomRoll = winH * g.layoutBottomRoll;
-
-    /* ── Drag handle ────────────────────────────────────────────────────────── */
-    ImGui::SetCursorPos(ImVec2(0.f, g.layoutDragY));
-    ImGui::InvisibleButton("##drag", ImVec2(ImGui::GetWindowWidth(), g.layoutDragHandle));
+    /* ── Drag handle (invisible strip, visual dots) ──────────────────────────── */
+    ImGui::SetCursorPos(ImVec2(0.f, g.posDragY));
+    ImGui::InvisibleButton("##drag", ImVec2(ImGui::GetWindowWidth(), g.posDragH));
+    bool dragHovered = ImGui::IsItemHovered();
     if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0) && !g.lockPosition) {
         ImVec2 delta = ImGui::GetIO().MouseDelta;
         g.winX += delta.x;
         g.winY += delta.y;
         ImGui::SetWindowPos(ImVec2(g.winX, g.winY));
     }
-    if (ImGui::IsItemHovered() && !g.lockPosition)
+    if (dragHovered && !g.lockPosition)
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
-    /* Visual grip dots */
     {
         ImDrawList* fdl = ImGui::GetForegroundDrawList();
         ImVec2 wp = ImGui::GetWindowPos();
         float cx = wp.x + ImGui::GetWindowWidth() * 0.5f;
-        float cy = wp.y + g.layoutPaddingRight + g.layoutDragY + g.layoutDragHandle * 0.5f;
-        ImU32 dotCol = IM_COL32(80, 40, 10, ImGui::IsItemHovered() ? 180 : 80);
+        float cy = wp.y + 4.f + g.posDragY + g.posDragH * 0.5f;
+        ImU32 dotCol = IM_COL32(80, 40, 10, dragHovered ? 180 : 80);
         for (int i = -2; i <= 2; i++)
             fdl->AddCircleFilled(ImVec2(cx + i * 6.f, cy), 2.5f, dotCol);
     }
 
+    /* ── Search bar ─────────────────────────────────────────────────────────── */
     {
         char searchBuf[256];
         strncpy(searchBuf, g.searchFilter.c_str(), sizeof(searchBuf) - 1);
         searchBuf[sizeof(searchBuf) - 1] = '\0';
-        float xBtnW  = ImGui::CalcTextSize("X").x + ImGui::GetStyle().FramePadding.x * 2.f;
-        float searchW = 110.f;
-        float totalW  = searchW + ImGui::GetStyle().ItemSpacing.x + xBtnW;
-        ImGui::SetCursorPosX(ImGui::GetWindowWidth() - g.layoutPaddingLeft - totalW - g.layoutSearchInset);
-        ImGui::SetNextItemWidth(searchW);
+        ImGui::SetCursorPos(ImVec2(g.posSearchX, g.posSearchY));
+        ImGui::SetNextItemWidth(g.posSearchW);
         if (ImGui::InputTextWithHint("##search", "Search...", searchBuf, sizeof(searchBuf)))
             g.searchFilter = searchBuf;
         ImGui::SameLine();
@@ -233,9 +222,13 @@ static void RenderTodoWindow() {
     /* Use cached visible indices (rebuilt only on data/filter change) */
     const std::vector<int>& visibleIndices = g.cachedVisibleIndices;
 
-    /* ── Middle flat section: task list ─────────────────────────────────────── */
-    ImGui::SetNextWindowBgAlpha(0.f);
-    if (ImGui::BeginChild("TaskList", ImVec2(-1, -(bottomRoll + ImGui::GetStyle().WindowPadding.y)), false)) {
+    /* ── Task list ──────────────────────────────────────────────────────────── */
+    {
+        float taskW = ImGui::GetWindowWidth() - 8.f - 2.f * g.posTaskX;
+        float taskH = g.posTaskBot - g.posTaskY;
+        ImGui::SetCursorPos(ImVec2(g.posTaskX, g.posTaskY));
+        ImGui::SetNextWindowBgAlpha(0.f);
+        if (ImGui::BeginChild("TaskList", ImVec2(taskW, taskH), false)) {
         const float listWidth = ImGui::GetContentRegionAvail().x;
         ImVec2 winPos = ImGui::GetWindowPos();
         float winWidth = ImGui::GetWindowWidth();
@@ -355,10 +348,10 @@ static void RenderTodoWindow() {
             }
         }
 
-        /* rowMin/rowMax are already written to g.rowMin/g.rowMax in-place */
         g.rowVisibleIndices = visibleIndices;
+        }
+        ImGui::EndChild();
     }
-    ImGui::EndChild();
 
     /* Right-click on a row opens context menu (after EndChild so popup isn't clipped) */
     if (ImGui::IsMouseClicked(1) && !g.rowMin.empty()) {
@@ -459,14 +452,9 @@ static void RenderTodoWindow() {
         ImGui::EndPopup();
     }
 
-    /* ── Bottom roll: inline add task row, right-aligned ───────────────────── */
+    /* ── Add task row ───────────────────────────────────────────────────────── */
     {
-        float addBtnW   = ImGui::CalcTextSize("Add").x + ImGui::GetStyle().FramePadding.x * 2.f;
-        float totalW    = INPUT_WIDTH + ImGui::GetStyle().ItemSpacing.x
-                        + COMBO_WIDTH + ImGui::GetStyle().ItemSpacing.x + addBtnW;
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + g.layoutAddExtraY);
-        ImGui::SetCursorPosX(ImGui::GetWindowWidth() - g.layoutPaddingLeft - totalW - g.layoutAddInset);
-
+        ImGui::SetCursorPos(ImVec2(g.posAddX, g.posAddY));
         char newBuf[512];
         strncpy(newBuf, g.newTaskText.c_str(), sizeof(newBuf) - 1);
         newBuf[sizeof(newBuf) - 1] = '\0';
@@ -483,7 +471,7 @@ static void RenderTodoWindow() {
         ImGui::SetNextItemWidth(COMBO_WIDTH);
         ImGui::Combo("##repeat", (int*)&g.newTaskRepeat, repeatLabels, 2);
         ImGui::SameLine();
-        if (ImGui::Button("Add")) AddNewTodo();
+        if (ImGui::Button("+")) AddNewTodo();
     }
 
     /* ── Resize grip (bottom-right corner, visible on window hover) ─────────── */
@@ -491,8 +479,8 @@ static void RenderTodoWindow() {
         static bool s_resizing = false;
         ImVec2 wpos = ImGui::GetWindowPos();
         ImVec2 wsz  = ImGui::GetWindowSize();
-        float  gs = g.layoutResizeGrip;
-        ImVec2 gripMax(wpos.x + wsz.x + g.layoutResizeOffX, wpos.y + wsz.y + g.layoutResizeOffY);
+        float  gs = g.posResizeSize;
+        ImVec2 gripMax(wpos.x + wsz.x + g.posResizeX, wpos.y + wsz.y + g.posResizeY);
         ImVec2 gripMin(gripMax.x - gs, gripMax.y - gs);
         ImVec2 mouse = ImGui::GetIO().MousePos;
         bool overGrip = mouse.x >= gripMin.x && mouse.x < gripMax.x
@@ -552,7 +540,66 @@ static void RenderTodoWindow() {
     g.winW = ImGui::GetWindowWidth();
     g.winH = ImGui::GetWindowHeight();
 
-    if (extraLeft > 0.f) ImGui::Unindent(extraLeft);
+    /* ── Layout edit mode overlays ──────────────────────────────────────────── */
+    if (g.layoutEditMode) {
+        static int s_dragHandle = -1;
+        ImDrawList* fdl = ImGui::GetForegroundDrawList();
+        ImVec2 wpos = ImGui::GetWindowPos();
+        float  winW = ImGui::GetWindowWidth();
+        float  winH = ImGui::GetWindowHeight();
+        float  pad  = 4.f;
+
+        struct Handle {
+            const char* label;
+            ImU32       col;
+            float       sx, sy, sw, sh;
+            float*      px;
+            float*      py;
+        } handles[] = {
+            { "DRAG",   IM_COL32(60, 120, 255, 120),
+              wpos.x,             wpos.y + pad + g.posDragY,     winW,              g.posDragH,
+              nullptr,            &g.posDragY },
+            { "SEARCH", IM_COL32(50, 200, 80,  120),
+              wpos.x + pad + g.posSearchX, wpos.y + pad + g.posSearchY, g.posSearchW + 30.f, 22.f,
+              &g.posSearchX,      &g.posSearchY },
+            { "TASKS",  IM_COL32(220, 160, 40, 100),
+              wpos.x + pad + g.posTaskX,   wpos.y + pad + g.posTaskY,   winW - 8.f - 2.f*g.posTaskX, g.posTaskBot - g.posTaskY,
+              &g.posTaskX,        &g.posTaskY },
+            { "ADD",    IM_COL32(180, 60, 220, 120),
+              wpos.x + pad + g.posAddX,    wpos.y + pad + g.posAddY,    160.f, 22.f,
+              &g.posAddX,         &g.posAddY },
+            { "RESIZE", IM_COL32(220, 60, 60,  120),
+              wpos.x + winW + g.posResizeX - g.posResizeSize, wpos.y + winH + g.posResizeY - g.posResizeSize,
+              g.posResizeSize, g.posResizeSize,
+              &g.posResizeX,      &g.posResizeY },
+        };
+
+        ImVec2 mouse = ImGui::GetIO().MousePos;
+        for (int i = 0; i < 5; i++) {
+            Handle& h = handles[i];
+            bool over = mouse.x >= h.sx && mouse.x < h.sx + h.sw
+                     && mouse.y >= h.sy && mouse.y < h.sy + h.sh;
+            if (over && ImGui::GetIO().MouseClicked[0] && s_dragHandle < 0)
+                s_dragHandle = i;
+            if (s_dragHandle == i) {
+                if (ImGui::GetIO().MouseDown[0]) {
+                    ImVec2 d = ImGui::GetIO().MouseDelta;
+                    if (h.px) *h.px += d.x;
+                    if (h.py) *h.py += d.y;
+                    MarkDirty();
+                } else {
+                    s_dragHandle = -1;
+                }
+            }
+            bool active = (s_dragHandle == i);
+            ImU32 fill = active ? IM_COL32(255,255,255,60) : h.col;
+            fdl->AddRectFilled(ImVec2(h.sx, h.sy), ImVec2(h.sx+h.sw, h.sy+h.sh), fill, 3.f);
+            fdl->AddRect(ImVec2(h.sx, h.sy), ImVec2(h.sx+h.sw, h.sy+h.sh),
+                         IM_COL32(255,255,255,200), 3.f, 0, 1.5f);
+            fdl->AddText(ImVec2(h.sx+4.f, h.sy+4.f), IM_COL32(255,255,255,255), h.label);
+        }
+    }
+
     ImGui::SetWindowFontScale(1.0f);
     ImGui::PopStyleColor(SEPIA_COLOUR_COUNT);
     ImGui::End();
@@ -626,31 +673,33 @@ static void RenderOptions() {
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
-    ImGui::TextDisabled("Layout tuning");
-    ImGui::SetNextItemWidth(120.f);
-    if (ImGui::SliderFloat("Top roll",      &g.layoutTopRoll,     0.02f, 0.40f, "%.3f")) MarkDirty();
-    ImGui::SetNextItemWidth(120.f);
-    if (ImGui::SliderFloat("Bottom roll",   &g.layoutBottomRoll,  0.05f, 0.55f, "%.3f")) MarkDirty();
-    ImGui::SetNextItemWidth(120.f);
-    if (ImGui::SliderFloat("Pad left",      &g.layoutPaddingLeft,  0.f, 120.f,  "%.1f")) MarkDirty();
-    ImGui::SetNextItemWidth(120.f);
-    if (ImGui::SliderFloat("Pad right",     &g.layoutPaddingRight, 0.f, 120.f,  "%.1f")) MarkDirty();
-    ImGui::SetNextItemWidth(120.f);
-    if (ImGui::SliderFloat("Search inset",  &g.layoutSearchInset, -60.f, 120.f, "%.1f")) MarkDirty();
-    ImGui::SetNextItemWidth(120.f);
-    if (ImGui::SliderFloat("Add inset",     &g.layoutAddInset,    -60.f, 120.f, "%.1f")) MarkDirty();
-    ImGui::SetNextItemWidth(120.f);
-    if (ImGui::SliderFloat("Add offset Y",  &g.layoutAddExtraY,   -20.f,  80.f, "%.1f")) MarkDirty();
-    ImGui::SetNextItemWidth(120.f);
-    if (ImGui::SliderFloat("Drag H",        &g.layoutDragHandle,   10.f, 150.f, "%.1f")) MarkDirty();
-    ImGui::SetNextItemWidth(120.f);
-    if (ImGui::SliderFloat("Drag Y",        &g.layoutDragY,       -20.f, 150.f, "%.1f")) MarkDirty();
-    ImGui::SetNextItemWidth(120.f);
-    if (ImGui::SliderFloat("Grip size",     &g.layoutResizeGrip,   10.f,  60.f, "%.1f")) MarkDirty();
-    ImGui::SetNextItemWidth(120.f);
-    if (ImGui::SliderFloat("Grip off X",    &g.layoutResizeOffX, -150.f,  50.f, "%.1f")) MarkDirty();
-    ImGui::SetNextItemWidth(120.f);
-    if (ImGui::SliderFloat("Grip off Y",    &g.layoutResizeOffY, -150.f,  50.f, "%.1f")) MarkDirty();
+    if (ImGui::Checkbox("Layout edit mode", &g.layoutEditMode))
+        MarkDirty();
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Drag the coloured overlays on the window\nto reposition each element.");
+
+    if (g.layoutEditMode) {
+        ImGui::TextDisabled("Drag handle");
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("DH Y",  &g.posDragY,   -20.f, 200.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("DH H",  &g.posDragH,    10.f, 150.f, "%.0f")) MarkDirty();
+        ImGui::TextDisabled("Search bar");
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("SR X",  &g.posSearchX, -50.f, 400.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("SR Y",  &g.posSearchY, -20.f, 400.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("SR W",  &g.posSearchW,  30.f, 300.f, "%.0f")) MarkDirty();
+        ImGui::TextDisabled("Task list");
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("TL X",  &g.posTaskX,     0.f, 150.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("TL Y",  &g.posTaskY,    -20.f, 400.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("TL Bot",&g.posTaskBot,   50.f, 600.f, "%.0f")) MarkDirty();
+        ImGui::TextDisabled("Add row");
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("AR X",  &g.posAddX,    -50.f, 400.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("AR Y",  &g.posAddY,    -20.f, 600.f, "%.0f")) MarkDirty();
+        ImGui::TextDisabled("Resize grip");
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("RG X",  &g.posResizeX, -200.f, 50.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("RG Y",  &g.posResizeY, -200.f, 50.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("RG Sz", &g.posResizeSize, 10.f, 80.f, "%.0f")) MarkDirty();
+    }
 
     ImGui::Spacing();
     ImGui::Separator();
