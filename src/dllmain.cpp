@@ -1125,7 +1125,7 @@ void AddonLoad(AddonAPI_t* aApi) {
 
     /* Load icons from embedded data and register Quick Access shortcut */
     APIDefs->Textures_LoadFromMemory(QA_ICON_ID,     (void*)PTD_ICON_NORMAL, PTD_ICON_NORMAL_size, nullptr);
-    APIDefs->Textures_LoadFromMemory(QA_ICON_HOV_ID, (void*)PTD_ICON_NORMAL, PTD_ICON_NORMAL_size, nullptr);
+    APIDefs->Textures_LoadFromMemory(QA_ICON_HOV_ID, (void*)PTD_ICON_HOV,    PTD_ICON_HOV_size,    nullptr);
     APIDefs->Textures_GetOrCreateFromMemory(FLOAT_ICON_TEX_ID, (void*)PTD_FLOAT_ICON, PTD_FLOAT_ICON_len);
     if (g.showQuickAccess)
         APIDefs->QuickAccess_Add(QA_ID, QA_ICON_ID, QA_ICON_HOV_ID, KB_TOGGLE, "ToDo List");
