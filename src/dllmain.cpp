@@ -193,8 +193,8 @@ static void RenderTodoWindow() {
     float winH       = ImGui::GetWindowHeight();
     float bottomRoll = winH * g.layoutBottomRoll;
 
-    /* ── Top roll: drag handle + narrowed centred search box ───────────────── */
-    ImGui::SetCursorPos(ImVec2(0.f, 0.f));
+    /* ── Drag handle ────────────────────────────────────────────────────────── */
+    ImGui::SetCursorPos(ImVec2(0.f, g.layoutDragY));
     ImGui::InvisibleButton("##drag", ImVec2(ImGui::GetWindowWidth(), g.layoutDragHandle));
     if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0) && !g.lockPosition) {
         ImVec2 delta = ImGui::GetIO().MouseDelta;
@@ -204,6 +204,16 @@ static void RenderTodoWindow() {
     }
     if (ImGui::IsItemHovered() && !g.lockPosition)
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
+    /* Visual grip dots */
+    {
+        ImDrawList* fdl = ImGui::GetForegroundDrawList();
+        ImVec2 wp = ImGui::GetWindowPos();
+        float cx = wp.x + ImGui::GetWindowWidth() * 0.5f;
+        float cy = wp.y + g.layoutPaddingRight + g.layoutDragY + g.layoutDragHandle * 0.5f;
+        ImU32 dotCol = IM_COL32(80, 40, 10, ImGui::IsItemHovered() ? 180 : 80);
+        for (int i = -2; i <= 2; i++)
+            fdl->AddCircleFilled(ImVec2(cx + i * 6.f, cy), 2.5f, dotCol);
+    }
 
     {
         char searchBuf[256];
@@ -212,7 +222,7 @@ static void RenderTodoWindow() {
         float xBtnW  = ImGui::CalcTextSize("X").x + ImGui::GetStyle().FramePadding.x * 2.f;
         float searchW = 110.f;
         float totalW  = searchW + ImGui::GetStyle().ItemSpacing.x + xBtnW;
-        ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x - totalW - g.layoutSearchInset);
+        ImGui::SetCursorPosX(ImGui::GetWindowWidth() - g.layoutPaddingLeft - totalW - g.layoutSearchInset);
         ImGui::SetNextItemWidth(searchW);
         if (ImGui::InputTextWithHint("##search", "Search...", searchBuf, sizeof(searchBuf)))
             g.searchFilter = searchBuf;
@@ -455,7 +465,7 @@ static void RenderTodoWindow() {
         float totalW    = INPUT_WIDTH + ImGui::GetStyle().ItemSpacing.x
                         + COMBO_WIDTH + ImGui::GetStyle().ItemSpacing.x + addBtnW;
         ImGui::SetCursorPosY(ImGui::GetCursorPosY() + g.layoutAddExtraY);
-        ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x - totalW - g.layoutAddInset);
+        ImGui::SetCursorPosX(ImGui::GetWindowWidth() - g.layoutPaddingLeft - totalW - g.layoutAddInset);
 
         char newBuf[512];
         strncpy(newBuf, g.newTaskText.c_str(), sizeof(newBuf) - 1);
@@ -482,8 +492,8 @@ static void RenderTodoWindow() {
         ImVec2 wpos = ImGui::GetWindowPos();
         ImVec2 wsz  = ImGui::GetWindowSize();
         float  gs = g.layoutResizeGrip;
-        ImVec2 gripMin(wpos.x + wsz.x - gs, wpos.y + wsz.y - gs);
-        ImVec2 gripMax(wpos.x + wsz.x,      wpos.y + wsz.y);
+        ImVec2 gripMax(wpos.x + wsz.x + g.layoutResizeOffX, wpos.y + wsz.y + g.layoutResizeOffY);
+        ImVec2 gripMin(gripMax.x - gs, gripMax.y - gs);
         ImVec2 mouse = ImGui::GetIO().MousePos;
         bool overGrip = mouse.x >= gripMin.x && mouse.x < gripMax.x
                      && mouse.y >= gripMin.y && mouse.y < gripMax.y;
@@ -632,9 +642,15 @@ static void RenderOptions() {
     ImGui::SetNextItemWidth(120.f);
     if (ImGui::SliderFloat("Add offset Y",  &g.layoutAddExtraY,   -20.f,  80.f, "%.1f")) MarkDirty();
     ImGui::SetNextItemWidth(120.f);
-    if (ImGui::SliderFloat("Drag handle",   &g.layoutDragHandle,   10.f, 150.f, "%.1f")) MarkDirty();
+    if (ImGui::SliderFloat("Drag H",        &g.layoutDragHandle,   10.f, 150.f, "%.1f")) MarkDirty();
     ImGui::SetNextItemWidth(120.f);
-    if (ImGui::SliderFloat("Resize grip",   &g.layoutResizeGrip,   10.f,  60.f, "%.1f")) MarkDirty();
+    if (ImGui::SliderFloat("Drag Y",        &g.layoutDragY,       -20.f, 150.f, "%.1f")) MarkDirty();
+    ImGui::SetNextItemWidth(120.f);
+    if (ImGui::SliderFloat("Grip size",     &g.layoutResizeGrip,   10.f,  60.f, "%.1f")) MarkDirty();
+    ImGui::SetNextItemWidth(120.f);
+    if (ImGui::SliderFloat("Grip off X",    &g.layoutResizeOffX, -150.f,  50.f, "%.1f")) MarkDirty();
+    ImGui::SetNextItemWidth(120.f);
+    if (ImGui::SliderFloat("Grip off Y",    &g.layoutResizeOffY, -150.f,  50.f, "%.1f")) MarkDirty();
 
     ImGui::Spacing();
     ImGui::Separator();
