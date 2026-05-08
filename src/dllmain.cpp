@@ -145,7 +145,7 @@ static void RenderTodoWindow() {
     ImGuiWindowFlags wflags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBackground
                             | ImGuiWindowFlags_NoResize   | ImGuiWindowFlags_NoScrollbar;
     /* Pad content away from the scroll's rolled edges */
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(38.f, 6.f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(58.f, 6.f));
     if (!ImGui::Begin(WINDOW_NAME, nullptr, wflags)) {
         ImGui::PopStyleVar();
         ImGui::End();
