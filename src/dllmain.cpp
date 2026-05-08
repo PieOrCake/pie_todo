@@ -12,8 +12,8 @@
 // Version constants
 #define V_MAJOR 0
 #define V_MINOR 9
-#define V_BUILD 0
-#define V_REVISION 1
+#define V_BUILD 1
+#define V_REVISION 0
 
 /* ── UI Constants ──────────────────────────────────────────────────────────── */
 
@@ -481,7 +481,12 @@ static void RenderOptions() {
     ImGui::Separator();
     ImGui::Spacing();
     if (ImGui::Checkbox("Collapse to icon", &g.collapseEnabled)) {
-        if (!g.collapseEnabled) g.collapsed = false;
+        if (g.collapseEnabled) {
+            g.windowVisible = true;
+            g.collapsed = true;
+        } else {
+            g.collapsed = false;
+        }
         MarkDirty();
     }
     ImGui::SameLine();
