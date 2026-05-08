@@ -25,7 +25,7 @@ extern const char* QA_ICON_FILENAME;
 static constexpr float MIN_WINDOW_DIM    = 200.f;
 static constexpr float DEFAULT_WINDOW_W  = 478.f;
 static constexpr float DEFAULT_WINDOW_H  = 494.f;
-static constexpr float SCROLL_ASPECT     = 751.f / 726.f; /* scroll image h/w ratio */
+static constexpr float SCROLL_ASPECT     = 591.f / 504.f; /* scroll image h/w ratio */
 static constexpr double RESET_CHECK_INTERVAL = 60.0;
 static constexpr double DIRTY_SAVE_DELAY     = 2.0;
 static constexpr double FILE_POLL_INTERVAL   = 1.0;
