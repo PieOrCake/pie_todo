@@ -27,7 +27,7 @@ static constexpr float ROW_PADDING        = 8.f;
 static constexpr float COMBO_WIDTH        = 80.f;
 static constexpr float EDIT_FIELD_WIDTH   = 300.f;
 static constexpr float WRAP_WIDTH         = 280.f;
-static constexpr float DRAG_HANDLE_HEIGHT = 52.f;
+static constexpr float DRAG_HANDLE_HEIGHT = 92.f;
 static constexpr float RESIZE_GRIP_SIZE   = 16.f;
 
 /* ── Forward declarations ──────────────────────────────────────────────────── */
@@ -186,7 +186,7 @@ static void RenderTodoWindow() {
 
     /* ── Zone heights (proportional to scroll art) ──────────────────────────── */
     float winH       = ImGui::GetWindowHeight();
-    float bottomRoll = winH * 0.18f;
+    float bottomRoll = winH * 0.26f;
 
     /* ── Top roll: drag handle + search box ─────────────────────────────────── */
     ImGui::SetCursorPos(ImVec2(0.f, 0.f));
