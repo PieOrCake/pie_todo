@@ -8,6 +8,8 @@
 #include "imgui.h"
 #include "TodoManager.h"
 #include "Shared.h"
+#include "ptd_icon.h"
+#include "ptd_float_icon.h"
 
 // Version constants
 #define V_MAJOR 0
@@ -17,8 +19,9 @@
 
 /* ── UI Constants ──────────────────────────────────────────────────────────── */
 
-static const char* WINDOW_NAME      = "Pie's Awesome ToDo List";
-static const char* ICON_WINDOW_NAME = "##PieTodoIcon";
+static const char* WINDOW_NAME        = "Pie's Awesome ToDo List";
+static const char* ICON_WINDOW_NAME   = "##PieTodoIcon";
+static const char* FLOAT_ICON_TEX_ID  = "PieTodo_float_icon";
 
 static constexpr float ROW_PADDING       = 8.f;
 static constexpr float INPUT_WIDTH       = 126.f;
@@ -86,20 +89,34 @@ static void RenderTodoWindow() {
 
     /* Collapsed icon mode */
     if (g.collapseEnabled && g.collapsed) {
+        static constexpr float ICON_SIZE = 64.f;
         ImGui::SetNextWindowPos(ImVec2(g.winX, g.winY), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(ICON_SIZE, ICON_SIZE));
         ImGuiWindowFlags iconFlags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize
-            | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoScrollbar
-            | ImGuiWindowFlags_NoFocusOnAppearing;
+            | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBackground
+            | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus;
         if (ImGui::Begin(ICON_WINDOW_NAME, nullptr, iconFlags)) {
-            Texture_t* tex = APIDefs->Textures_Get(QA_ICON_ID);
+            Texture_t* tex = APIDefs->Textures_Get(FLOAT_ICON_TEX_ID);
             if (tex && tex->Resource) {
-                ImGui::Image(tex->Resource, ImVec2(32.f, 32.f));
+                ImVec2 wp = ImGui::GetWindowPos();
+                ImDrawList* dl  = ImGui::GetWindowDrawList();
+                ImDrawList* fdl = ImGui::GetForegroundDrawList();
+                ImVec2 p0(wp.x, wp.y);
+                ImVec2 p1(wp.x + ICON_SIZE, wp.y + ICON_SIZE);
+                dl->AddImage((ImTextureID)tex->Resource, p0, p1);
+
+                /* Completion text overlaid on lower portion of icon */
+                char dBuf[16], wBuf[16];
+                snprintf(dBuf, sizeof(dBuf), "D:%d/%d", g.cachedDailyDone, g.cachedDailyTotal);
+                snprintf(wBuf, sizeof(wBuf), "W:%d/%d", g.cachedWeeklyDone, g.cachedWeeklyTotal);
+                ImVec2 dSz = ImGui::CalcTextSize(dBuf);
+                ImVec2 wSz = ImGui::CalcTextSize(wBuf);
+                float lineH = dSz.y;
+                float stripY = p1.y - lineH * 2.f - 4.f;
+                fdl->AddRectFilled(ImVec2(p0.x, stripY), p1, IM_COL32(0, 0, 0, 160));
+                fdl->AddText(ImVec2(p0.x + (ICON_SIZE - dSz.x) * 0.5f, stripY + 1.f),          IM_COL32(255, 255, 255, 255), dBuf);
+                fdl->AddText(ImVec2(p0.x + (ICON_SIZE - wSz.x) * 0.5f, stripY + lineH + 1.f),  IM_COL32(255, 255, 255, 255), wBuf);
             }
-            char dBuf[32], wBuf[32];
-            snprintf(dBuf, sizeof(dBuf), "D: %d/%d", g.cachedDailyDone, g.cachedDailyTotal);
-            snprintf(wBuf, sizeof(wBuf), "W: %d/%d", g.cachedWeeklyDone, g.cachedWeeklyTotal);
-            ImGui::TextUnformatted(dBuf);
-            ImGui::TextUnformatted(wBuf);
 
             if (ImGui::IsWindowHovered()) {
                 if (!g.expandOnClick || ImGui::IsMouseClicked(0)) {
@@ -539,14 +556,11 @@ void AddonLoad(AddonAPI_t* aApi) {
     APIDefs->GUI_Register(RT_Render, RenderTodoWindow);
     APIDefs->GUI_Register(RT_OptionsRender, RenderOptions);
 
-    /* Load Quick Access icon and register shortcut */
-    const char* dir = APIDefs->Paths_GetAddonDirectory(ADDON_NAME);
-    if (dir && dir[0]) {
-        std::string iconPath = std::string(dir) + "\\" + QA_ICON_FILENAME;
-        APIDefs->Textures_GetOrCreateFromFile(QA_ICON_ID, iconPath.c_str());
-        if (g.showQuickAccess)
-            APIDefs->QuickAccess_Add(QA_ID, QA_ICON_ID, QA_ICON_ID, KB_TOGGLE, "ToDo List");
-    }
+    /* Load icons from embedded data and register Quick Access shortcut */
+    APIDefs->Textures_GetOrCreateFromMemory(QA_ICON_ID,    (void*)PTD_ICON,       PTD_ICON_len);
+    APIDefs->Textures_GetOrCreateFromMemory(FLOAT_ICON_TEX_ID, (void*)PTD_FLOAT_ICON, PTD_FLOAT_ICON_len);
+    if (g.showQuickAccess)
+        APIDefs->QuickAccess_Add(QA_ID, QA_ICON_ID, QA_ICON_ID, KB_TOGGLE, "ToDo List");
 
     std::string today  = GetCurrentUtcDate();
     std::string monday = GetThisMondayDate();
