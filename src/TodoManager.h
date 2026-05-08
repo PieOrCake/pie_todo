@@ -23,8 +23,8 @@ extern const char* QA_ICON_ID;
 extern const char* QA_ICON_FILENAME;
 
 static constexpr float MIN_WINDOW_DIM    = 200.f;
-static constexpr float DEFAULT_WINDOW_W  = 400.f;
-static constexpr float DEFAULT_WINDOW_H  = 480.f;
+static constexpr float DEFAULT_WINDOW_W  = 478.f;
+static constexpr float DEFAULT_WINDOW_H  = 494.f;
 static constexpr float SCROLL_ASPECT     = 751.f / 726.f; /* scroll image h/w ratio */
 static constexpr double RESET_CHECK_INTERVAL = 60.0;
 static constexpr double DIRTY_SAVE_DELAY     = 2.0;
@@ -91,16 +91,16 @@ struct AppState {
     bool                  openOnLaunch      = false;
 
     /* Element positions — all in window content space (px from content origin) */
-    float                 posDragY      =  31.f;
-    float                 posDragH      =  35.f;
-    float                 posSearchX    =  94.f;
-    float                 posSearchY    =  74.f;
-    float                 posSearchW    = 110.f;
-    float                 posTaskX      =  72.f;
-    float                 posTaskY      = 120.f;
-    float                 posTaskBot    = 298.f;
-    float                 posAddX       =  70.f;
-    float                 posAddY       = 323.f;
+    float                 posDragY      =  40.f;
+    float                 posDragH      =  29.f;
+    float                 posSearchX    = 151.f;
+    float                 posSearchY    =  79.f;
+    float                 posSearchW    = 189.f;
+    float                 posTaskX      = 112.f;
+    float                 posTaskY      = 138.f;
+    float                 posTaskBot    = 351.f;
+    float                 posAddX       = 149.f;
+    float                 posAddY       = 380.f;
     bool                  layoutEditMode = false;
 
     bool                  collapseEnabled   = false;

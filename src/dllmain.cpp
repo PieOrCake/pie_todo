@@ -663,10 +663,11 @@ static void RenderOptions() {
         ImGui::SetTooltip("Drag the coloured overlays on the window\nto reposition each element.\nYellow corner = resize.");
     ImGui::SameLine();
     if (ImGui::SmallButton("Reset layout")) {
-        g.posDragY = 31.f; g.posDragH = 35.f;
-        g.posSearchX = 94.f; g.posSearchY = 74.f; g.posSearchW = 110.f;
-        g.posTaskX = 72.f; g.posTaskY = 120.f; g.posTaskBot = 298.f;
-        g.posAddX = 70.f; g.posAddY = 323.f;
+        g.posDragY = 40.f; g.posDragH = 29.f;
+        g.posSearchX = 151.f; g.posSearchY = 79.f; g.posSearchW = 189.f;
+        g.posTaskX = 112.f; g.posTaskY = 138.f; g.posTaskBot = 351.f;
+        g.posAddX = 149.f; g.posAddY = 380.f;
+        g.winW = DEFAULT_WINDOW_W; g.winH = DEFAULT_WINDOW_H;
         MarkDirty();
     }
 
