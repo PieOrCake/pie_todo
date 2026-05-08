@@ -1,4 +1,11 @@
 cmake_minimum_required(VERSION 3.20)
+
+# Cross-compilation setup for Windows on Linux (must be before project())
+set(CMAKE_SYSTEM_NAME Windows)
+set(CMAKE_C_COMPILER x86_64-w64-mingw32-gcc)
+set(CMAKE_CXX_COMPILER x86_64-w64-mingw32-g++)
+set(CMAKE_RC_COMPILER x86_64-w64-mingw32-windres)
+
 project(PieTodo)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -9,12 +16,6 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 set(CMAKE_CXX_FLAGS_RELEASE "-Os -DNDEBUG")
-
-# Cross-compilation setup for Windows on Linux
-set(CMAKE_SYSTEM_NAME Windows)
-set(CMAKE_C_COMPILER x86_64-w64-mingw32-gcc)
-set(CMAKE_CXX_COMPILER x86_64-w64-mingw32-g++)
-set(CMAKE_RC_COMPILER x86_64-w64-mingw32-windres)
 
 # Static linking to avoid Windows DLL dependencies
 set(CMAKE_EXE_LINKER_FLAGS "-static -static-libgcc -static-libstdc++")
@@ -43,15 +44,8 @@ set(SOURCES
     ${IMGUI_SOURCES}
 )
 
-# Header files
-set(HEADERS
-    include/nexus/Nexus.h
-    src/TodoManager.h
-    src/Shared.h
-)
-
 # Create shared library (DLL)
-add_library(PieTodo SHARED ${SOURCES} ${HEADERS})
+add_library(PieTodo SHARED ${SOURCES})
 
 # Force Windows DLL extension
 set_target_properties(PieTodo PROPERTIES
@@ -67,14 +61,4 @@ target_sources(PieTodo PRIVATE ${CMAKE_SOURCE_DIR}/PieTodo.def)
 set_target_properties(PieTodo PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
-)
-
-# Post-build: copy icon into addon folder
-add_custom_command(TARGET PieTodo POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:PieTodo>/PieTodo"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:PieTodo>/PieTodo/icon"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_CURRENT_SOURCE_DIR}/icon/pie-todo-paper-icon.png"
-        "$<TARGET_FILE_DIR:PieTodo>/PieTodo/icon/pie-todo-paper-icon.png"
-    COMMENT "Create PieTodo addon folder and copy Quick Access icon"
 )

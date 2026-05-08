@@ -22,7 +22,7 @@ If an LLM creating software upsets you, then perhaps this repo isn't for you. Mo
 
 ### Linux (cross-compile to Windows .dll)
 
-Install MinGW-w64, then configure with the toolchain and build:
+Install MinGW-w64:
 
 ```bash
 # Arch
@@ -36,29 +36,12 @@ sudo dnf install mingw64-gcc-c++
 ```
 
 ```bash
-cd addon_todo
-rm -rf build
 mkdir build && cd build
-cmake .. -DCMAKE_TOOLCHAIN_FILE=../toolchains/linux-mingw-w64.cmake
-make
+cmake ..
+make -j$(nproc)
 ```
 
-Output: `build/PieTodo.dll` and (if present) `build/libwinpthread-1.dll`. Copy both into Nexus’s addons folder.
-
-### Windows
-
-Native build with Visual Studio or MinGW:
-
-```bash
-cd addon_todo
-mkdir build && cd build
-cmake .. -G "Visual Studio 17 2022" -A x64
-cmake --build . --config Release
-```
-
-Or with MinGW: use `-G "MinGW Makefiles" -DCMAKE_TOOLCHAIN_FILE=...` if you have a Windows MinGW toolchain file.
-
-Copy `PieTodo.dll` into Nexus’s addons folder.
+Output: `build/PieTodo.dll`. Copy into Nexus’s addons folder.
 
 ## License
 
