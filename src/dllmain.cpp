@@ -183,25 +183,40 @@ static void RenderTodoWindow() {
         }
     }
 
-    /* ── Drag handle (invisible strip, visual dots) ──────────────────────────── */
-    ImGui::SetCursorPos(ImVec2(0.f, g.posDragY));
-    ImGui::InvisibleButton("##drag", ImVec2(ImGui::GetWindowWidth(), g.posDragH));
-    bool dragHovered = ImGui::IsItemHovered();
-    if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0) && !g.lockPosition) {
-        ImVec2 delta = ImGui::GetIO().MouseDelta;
-        g.winX += delta.x;
-        g.winY += delta.y;
-        ImGui::SetWindowPos(ImVec2(g.winX, g.winY));
-        MarkDirty();
+    /* ── Drag handle (direct IO, same pattern as layout overlays) ───────────── */
+    {
+        static bool s_winDragging = false;
+        ImVec2 wp   = ImGui::GetWindowPos();
+        float  ww   = ImGui::GetWindowWidth();
+        ImVec2 dMin(wp.x,      wp.y + g.posDragY);
+        ImVec2 dMax(wp.x + ww, wp.y + g.posDragY + g.posDragH);
+        ImVec2 mouse = ImGui::GetIO().MousePos;
+        bool overDrag = mouse.x >= dMin.x && mouse.x < dMax.x
+                     && mouse.y >= dMin.y && mouse.y < dMax.y;
+        if (overDrag && ImGui::GetIO().MouseClicked[0] && !g.lockPosition)
+            s_winDragging = true;
+        if (!ImGui::GetIO().MouseDown[0])
+            s_winDragging = false;
+        if (s_winDragging && !g.lockPosition) {
+            ImVec2 delta = ImGui::GetIO().MouseDelta;
+            g.winX += delta.x;
+            g.winY += delta.y;
+            ImGui::SetWindowPos(ImVec2(g.winX, g.winY));
+            MarkDirty();
+        }
+        if (overDrag && !g.lockPosition)
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
     }
-    if (dragHovered && !g.lockPosition)
-        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
     {
         ImDrawList* fdl = ImGui::GetForegroundDrawList();
         ImVec2 wp = ImGui::GetWindowPos();
-        float cx = wp.x + ImGui::GetWindowWidth() * 0.5f;
+        float  ww = ImGui::GetWindowWidth();
+        float cx = wp.x + ww * 0.5f;
         float cy = wp.y + 4.f + g.posDragY + g.posDragH * 0.5f;
-        ImU32 dotCol = IM_COL32(80, 40, 10, dragHovered ? 180 : 80);
+        ImVec2 mouse = ImGui::GetIO().MousePos;
+        bool overDots = mouse.x >= wp.x && mouse.x < wp.x + ww
+                     && mouse.y >= wp.y + g.posDragY && mouse.y < wp.y + g.posDragY + g.posDragH;
+        ImU32 dotCol = IM_COL32(80, 40, 10, overDots ? 180 : 80);
         for (int i = -2; i <= 2; i++)
             fdl->AddCircleFilled(ImVec2(cx + i * 6.f, cy), 2.5f, dotCol);
     }
@@ -697,7 +712,7 @@ static void RenderOptions() {
         ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("SR Y",  &g.posSearchY, -500.f, 600.f, "%.0f")) MarkDirty();
         ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("SR W",  &g.posSearchW,   30.f, 300.f, "%.0f")) MarkDirty();
         ImGui::TextDisabled("Task list");
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("TL X",  &g.posTaskX,   -500.f, 600.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(200.f); if (ImGui::SliderFloat("Left margin (left/right)", &g.posTaskX, 0.f, 200.f, "%.0f")) MarkDirty();
         ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("TL Y",  &g.posTaskY,   -500.f, 600.f, "%.0f")) MarkDirty();
         ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("TL Bot",&g.posTaskBot,    50.f, 800.f, "%.0f")) MarkDirty();
         ImGui::TextDisabled("Add row");
