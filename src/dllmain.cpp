@@ -512,17 +512,16 @@ static void RenderTodoWindow() {
             ImVec2 delta = ImGui::GetIO().MouseDelta;
             float newW = std::max(MIN_WINDOW_DIM, g.winW + delta.x);
             float newH = std::max(MIN_WINDOW_DIM, g.winH + delta.y);
-            float sx = newW / g.winW;
             float sy = newH / g.winH;
             g.winW = newW;
             g.winH = newH;
             ImGui::SetWindowSize(ImVec2(g.winW, g.winH));
-            /* Scale all layout positions proportionally with the window */
+            /* Scale Y positions with height — X positions left alone because
+               taskW = winW - 8 - 2*posTaskX already adapts naturally to width */
             g.posDragY   *= sy; g.posDragH   *= sy;
-            g.posSearchX *= sx; g.posSearchY *= sy; g.posSearchW *= sx;
-            g.posTaskX   *= sx; g.posTaskY   *= sy; g.posTaskBot *= sy;
-            g.posAddX    *= sx; g.posAddY    *= sy;
-            /* posResizeX/Y are offsets from the corner — don't scale them */
+            g.posSearchY *= sy;
+            g.posTaskY   *= sy; g.posTaskBot *= sy;
+            g.posAddY    *= sy;
             MarkDirty();
             ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNWSE);
         } else if (overGrip) {
