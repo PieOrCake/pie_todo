@@ -24,12 +24,12 @@ static const char* ICON_WINDOW_NAME   = "##PieTodoIcon";
 static const char* FLOAT_ICON_TEX_ID  = "PieTodo_float_icon";
 
 static constexpr float ROW_PADDING        = 8.f;
-static constexpr float INPUT_WIDTH        = 100.f;
-static constexpr float COMBO_WIDTH        = 72.f;
+static constexpr float INPUT_WIDTH        = 86.f;
+static constexpr float COMBO_WIDTH        = 64.f;
 static constexpr float EDIT_FIELD_WIDTH   = 300.f;
 static constexpr float WRAP_WIDTH         = 280.f;
 static constexpr float DRAG_HANDLE_HEIGHT = 65.f;
-static constexpr float RESIZE_GRIP_SIZE   = 16.f;
+static constexpr float RESIZE_GRIP_SIZE   = 28.f;
 
 /* ── Forward declarations ──────────────────────────────────────────────────── */
 
@@ -206,9 +206,9 @@ static void RenderTodoWindow() {
         strncpy(searchBuf, g.searchFilter.c_str(), sizeof(searchBuf) - 1);
         searchBuf[sizeof(searchBuf) - 1] = '\0';
         float xBtnW  = ImGui::CalcTextSize("X").x + ImGui::GetStyle().FramePadding.x * 2.f;
-        float searchW = 120.f;
+        float searchW = 110.f;
         float totalW  = searchW + ImGui::GetStyle().ItemSpacing.x + xBtnW;
-        ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - totalW) * 0.5f);
+        ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x - totalW);
         ImGui::SetNextItemWidth(searchW);
         if (ImGui::InputTextWithHint("##search", "Search...", searchBuf, sizeof(searchBuf)))
             g.searchFilter = searchBuf;
@@ -445,12 +445,13 @@ static void RenderTodoWindow() {
         ImGui::EndPopup();
     }
 
-    /* ── Bottom roll: inline add task row, centred ─────────────────────────── */
+    /* ── Bottom roll: inline add task row, right-aligned ───────────────────── */
     {
         float addBtnW   = ImGui::CalcTextSize("Add").x + ImGui::GetStyle().FramePadding.x * 2.f;
         float totalW    = INPUT_WIDTH + ImGui::GetStyle().ItemSpacing.x
                         + COMBO_WIDTH + ImGui::GetStyle().ItemSpacing.x + addBtnW;
-        ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - totalW) * 0.5f);
+        ImGui::Spacing();
+        ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x - totalW);
 
         char newBuf[512];
         strncpy(newBuf, g.newTaskText.c_str(), sizeof(newBuf) - 1);
@@ -484,13 +485,20 @@ static void RenderTodoWindow() {
         bool winHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows
                                                 | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
 
-        if (winHovered || overGrip || s_resizing) {
+        {
             ImDrawList* fdl = ImGui::GetForegroundDrawList();
-            ImU32 gripCol = IM_COL32(80, 40, 10, (overGrip || s_resizing) ? 220 : 100);
+            ImU32 gripCol = IM_COL32(80, 40, 10, (overGrip || s_resizing) ? 200 : 80);
+            /* Filled corner triangle */
+            fdl->AddTriangleFilled(
+                ImVec2(gripMax.x,                    gripMax.y - RESIZE_GRIP_SIZE),
+                ImVec2(gripMax.x - RESIZE_GRIP_SIZE, gripMax.y),
+                ImVec2(gripMax.x,                    gripMax.y), gripCol);
+            /* Diagonal lines on top for texture */
+            ImU32 lineCol = IM_COL32(200, 160, 100, (overGrip || s_resizing) ? 220 : 120);
             for (int i = 1; i <= 3; i++) {
-                float o = i * 4.f;
-                fdl->AddLine(ImVec2(gripMax.x - o, gripMax.y),
-                             ImVec2(gripMax.x,     gripMax.y - o), gripCol, 1.5f);
+                float o = i * (RESIZE_GRIP_SIZE / 4.f);
+                fdl->AddLine(ImVec2(gripMax.x - o,               gripMax.y),
+                             ImVec2(gripMax.x,                   gripMax.y - o), lineCol, 1.5f);
             }
         }
 
