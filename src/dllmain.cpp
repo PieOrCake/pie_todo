@@ -92,8 +92,7 @@ static void RenderTodoWindow() {
     /* Collapsed icon mode */
     if (g.collapseEnabled && g.collapsed) {
         const float sz = g.floatIconSize;
-        float iconX = g.winX + (g.winW - sz) * 0.5f;
-        ImGui::SetNextWindowPos(ImVec2(iconX, g.winY), ImGuiCond_Always);
+        ImGui::SetNextWindowPos(ImVec2(g.winX, g.winY), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(sz, sz));
         ImGuiWindowFlags iconFlags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize
             | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBackground
