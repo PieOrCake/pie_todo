@@ -90,13 +90,13 @@ struct AppState {
     bool                  openOnLaunch      = false;
 
     /* Element positions — all in window content space (px from content origin) */
-    float                 posDragY      =  27.f;
-    float                 posDragH      =  48.f;
-    float                 posSearchX    =  87.f;
-    float                 posSearchY    =  75.f;
+    float                 posDragY      =  31.f;
+    float                 posDragH      =  35.f;
+    float                 posSearchX    =  94.f;
+    float                 posSearchY    =  74.f;
     float                 posSearchW    = 110.f;
     float                 posTaskX      =  72.f;
-    float                 posTaskY      = 108.f;
+    float                 posTaskY      = 120.f;
     float                 posTaskBot    = 298.f;
     float                 posAddX       =  70.f;
     float                 posAddY       = 323.f;
