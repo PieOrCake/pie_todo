@@ -108,12 +108,13 @@ void SaveTodos() {
     j["lock_size"] = g.lockSize;
     j["show_quick_access"] = g.showQuickAccess;
     j["open_on_launch"] = g.openOnLaunch;
-    j["layout_top_roll"]     = g.layoutTopRoll;
-    j["layout_bottom_roll"]  = g.layoutBottomRoll;
-    j["layout_padding_x"]    = g.layoutPaddingX;
-    j["layout_search_inset"] = g.layoutSearchInset;
-    j["layout_add_inset"]    = g.layoutAddInset;
-    j["layout_add_extra_y"]  = g.layoutAddExtraY;
+    j["layout_top_roll"]      = g.layoutTopRoll;
+    j["layout_bottom_roll"]   = g.layoutBottomRoll;
+    j["layout_padding_left"]  = g.layoutPaddingLeft;
+    j["layout_padding_right"] = g.layoutPaddingRight;
+    j["layout_search_inset"]  = g.layoutSearchInset;
+    j["layout_add_inset"]     = g.layoutAddInset;
+    j["layout_add_extra_y"]   = g.layoutAddExtraY;
     j["collapse_enabled"] = g.collapseEnabled;
     j["collapse_delay_sec"] = g.collapseDelaySec;
     j["float_icon_size"] = g.floatIconSize;
@@ -187,12 +188,13 @@ void LoadTodos() {
         g.showQuickAccess = j["show_quick_access"].get<bool>();
     if (j.contains("open_on_launch"))
         g.openOnLaunch = j["open_on_launch"].get<bool>();
-    if (j.contains("layout_top_roll"))     g.layoutTopRoll     = j["layout_top_roll"].get<float>();
-    if (j.contains("layout_bottom_roll"))  g.layoutBottomRoll  = j["layout_bottom_roll"].get<float>();
-    if (j.contains("layout_padding_x"))    g.layoutPaddingX    = j["layout_padding_x"].get<float>();
-    if (j.contains("layout_search_inset")) g.layoutSearchInset = j["layout_search_inset"].get<float>();
-    if (j.contains("layout_add_inset"))    g.layoutAddInset    = j["layout_add_inset"].get<float>();
-    if (j.contains("layout_add_extra_y"))  g.layoutAddExtraY   = j["layout_add_extra_y"].get<float>();
+    if (j.contains("layout_top_roll"))      g.layoutTopRoll      = j["layout_top_roll"].get<float>();
+    if (j.contains("layout_bottom_roll"))   g.layoutBottomRoll   = j["layout_bottom_roll"].get<float>();
+    if (j.contains("layout_padding_left"))  g.layoutPaddingLeft  = j["layout_padding_left"].get<float>();
+    if (j.contains("layout_padding_right")) g.layoutPaddingRight = j["layout_padding_right"].get<float>();
+    if (j.contains("layout_search_inset"))  g.layoutSearchInset  = j["layout_search_inset"].get<float>();
+    if (j.contains("layout_add_inset"))     g.layoutAddInset     = j["layout_add_inset"].get<float>();
+    if (j.contains("layout_add_extra_y"))   g.layoutAddExtraY    = j["layout_add_extra_y"].get<float>();
     if (j.contains("collapse_enabled"))
         g.collapseEnabled = j["collapse_enabled"].get<bool>();
     if (j.contains("collapse_delay_sec"))

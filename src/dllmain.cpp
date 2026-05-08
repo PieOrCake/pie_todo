@@ -144,7 +144,7 @@ static void RenderTodoWindow() {
     }
     ImGuiWindowFlags wflags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBackground
                             | ImGuiWindowFlags_NoResize   | ImGuiWindowFlags_NoScrollbar;
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(g.layoutPaddingX, 6.f));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(g.layoutPaddingRight, 6.f));
     if (!ImGui::Begin(WINDOW_NAME, nullptr, wflags)) {
         ImGui::PopStyleVar();
         ImGui::End();
@@ -174,6 +174,10 @@ static void RenderTodoWindow() {
 
     /* Auto-scale font proportionally to window width */
     ImGui::SetWindowFontScale(ImGui::GetWindowWidth() / DEFAULT_WINDOW_W);
+
+    /* Extra left indent (left roll is wider than right) */
+    float extraLeft = g.layoutPaddingLeft - g.layoutPaddingRight;
+    if (extraLeft > 0.f) ImGui::Indent(extraLeft);
 
     /* ── Background image ───────────────────────────────────────────────────── */
     {
@@ -538,6 +542,7 @@ static void RenderTodoWindow() {
     g.winW = ImGui::GetWindowWidth();
     g.winH = ImGui::GetWindowHeight();
 
+    if (extraLeft > 0.f) ImGui::Unindent(extraLeft);
     ImGui::SetWindowFontScale(1.0f);
     ImGui::PopStyleColor(SEPIA_COLOUR_COUNT);
     ImGui::End();
@@ -613,17 +618,19 @@ static void RenderOptions() {
     ImGui::Spacing();
     ImGui::TextDisabled("Layout tuning");
     ImGui::SetNextItemWidth(120.f);
-    if (ImGui::SliderFloat("Top roll",      &g.layoutTopRoll,    0.05f, 0.30f, "%.3f")) MarkDirty();
+    if (ImGui::SliderFloat("Top roll",      &g.layoutTopRoll,     0.02f, 0.40f, "%.3f")) MarkDirty();
     ImGui::SetNextItemWidth(120.f);
-    if (ImGui::SliderFloat("Bottom roll",   &g.layoutBottomRoll, 0.10f, 0.40f, "%.3f")) MarkDirty();
+    if (ImGui::SliderFloat("Bottom roll",   &g.layoutBottomRoll,  0.05f, 0.55f, "%.3f")) MarkDirty();
     ImGui::SetNextItemWidth(120.f);
-    if (ImGui::SliderFloat("Padding X",     &g.layoutPaddingX,   20.f,  100.f, "%.1f")) MarkDirty();
+    if (ImGui::SliderFloat("Pad left",      &g.layoutPaddingLeft,  0.f, 120.f,  "%.1f")) MarkDirty();
     ImGui::SetNextItemWidth(120.f);
-    if (ImGui::SliderFloat("Search inset",  &g.layoutSearchInset, 0.f,  80.f,  "%.1f")) MarkDirty();
+    if (ImGui::SliderFloat("Pad right",     &g.layoutPaddingRight, 0.f, 120.f,  "%.1f")) MarkDirty();
     ImGui::SetNextItemWidth(120.f);
-    if (ImGui::SliderFloat("Add inset",     &g.layoutAddInset,    0.f,  80.f,  "%.1f")) MarkDirty();
+    if (ImGui::SliderFloat("Search inset",  &g.layoutSearchInset, -60.f, 120.f, "%.1f")) MarkDirty();
     ImGui::SetNextItemWidth(120.f);
-    if (ImGui::SliderFloat("Add offset Y",  &g.layoutAddExtraY,   0.f,  40.f,  "%.1f")) MarkDirty();
+    if (ImGui::SliderFloat("Add inset",     &g.layoutAddInset,    -60.f, 120.f, "%.1f")) MarkDirty();
+    ImGui::SetNextItemWidth(120.f);
+    if (ImGui::SliderFloat("Add offset Y",  &g.layoutAddExtraY,   -20.f,  80.f, "%.1f")) MarkDirty();
 
     ImGui::Spacing();
     ImGui::Separator();

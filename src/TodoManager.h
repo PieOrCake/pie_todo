@@ -92,7 +92,8 @@ struct AppState {
     /* Layout tuning — adjust in options, report values to dev to hardcode */
     float                 layoutTopRoll     = 0.135f;
     float                 layoutBottomRoll  = 0.26f;
-    float                 layoutPaddingX    = 58.f;
+    float                 layoutPaddingLeft = 58.f;
+    float                 layoutPaddingRight= 30.f;
     float                 layoutSearchInset = 0.f;
     float                 layoutAddInset    = 0.f;
     float                 layoutAddExtraY   = 4.f;
