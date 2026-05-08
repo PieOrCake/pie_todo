@@ -173,6 +173,8 @@ static void RenderTodoWindow() {
     ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, IM_COL32(120, 80,  40,  220));
     static constexpr int SEPIA_COLOUR_COUNT = 17;
 
+    ImGui::SetWindowFontScale(g.textScale);
+
     /* ── Background image ───────────────────────────────────────────────────── */
     {
         ImVec2 wp  = ImGui::GetWindowPos();
@@ -525,6 +527,7 @@ static void RenderTodoWindow() {
     g.winW = ImGui::GetWindowWidth();
     g.winH = ImGui::GetWindowHeight();
 
+    ImGui::SetWindowFontScale(1.0f);
     ImGui::PopStyleColor(SEPIA_COLOUR_COUNT);
     ImGui::End();
 }
@@ -593,6 +596,15 @@ static void RenderOptions() {
     ImGui::TextDisabled("(?)");
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Automatically show the window when the game starts.");
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+    ImGui::SetNextItemWidth(100.f);
+    if (ImGui::SliderFloat("Text size", &g.textScale, 0.7f, 1.5f, "%.2f")) {
+        g.textScale = std::max(0.7f, std::min(g.textScale, 1.5f));
+        MarkDirty();
+    }
 
     ImGui::Spacing();
     ImGui::Separator();

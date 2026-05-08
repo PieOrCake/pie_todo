@@ -88,6 +88,7 @@ struct AppState {
 
     bool                  showQuickAccess   = true;
     bool                  openOnLaunch      = false;
+    float                 textScale         = 1.0f;
     bool                  collapseEnabled   = false;
     float                 collapseDelaySec  = 2.0f;
     float                 floatIconSize     = 64.f;

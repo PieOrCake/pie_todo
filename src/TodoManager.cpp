@@ -108,6 +108,7 @@ void SaveTodos() {
     j["lock_size"] = g.lockSize;
     j["show_quick_access"] = g.showQuickAccess;
     j["open_on_launch"] = g.openOnLaunch;
+    j["text_scale"] = g.textScale;
     j["collapse_enabled"] = g.collapseEnabled;
     j["collapse_delay_sec"] = g.collapseDelaySec;
     j["float_icon_size"] = g.floatIconSize;
@@ -181,6 +182,8 @@ void LoadTodos() {
         g.showQuickAccess = j["show_quick_access"].get<bool>();
     if (j.contains("open_on_launch"))
         g.openOnLaunch = j["open_on_launch"].get<bool>();
+    if (j.contains("text_scale"))
+        g.textScale = j["text_scale"].get<float>();
     if (j.contains("collapse_enabled"))
         g.collapseEnabled = j["collapse_enabled"].get<bool>();
     if (j.contains("collapse_delay_sec"))
