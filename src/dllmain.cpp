@@ -178,13 +178,12 @@ static void RenderTodoWindow() {
     if (g.cacheDirty || g.searchFilter != g.cachedSearchFilter || g.completedMode != g.cachedCompletedMode)
         RebuildCache();
 
-    /* Boring mode — entirely separate render path */
-    if (g.displayMode == DisplayMode_Boring) { RenderTodoWindowBoring(); return; }
-
-    /* Collapsed icon mode */
+    /* Collapsed icon mode (shared by Fancy and Boring) */
     if (g.collapseEnabled && g.collapsed) {
         const float sz = g.floatIconSize;
-        ImGui::SetNextWindowPos(ImVec2(g.winX, g.winY), ImGuiCond_Always);
+        float iconX = (g.displayMode == DisplayMode_Boring) ? g.boringX : g.winX;
+        float iconY = (g.displayMode == DisplayMode_Boring) ? g.boringY : g.winY;
+        ImGui::SetNextWindowPos(ImVec2(iconX, iconY), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(sz, sz));
         ImGuiWindowFlags iconFlags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize
             | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBackground
@@ -226,6 +225,9 @@ static void RenderTodoWindow() {
         ImGui::End();
         return;
     }
+
+    /* Boring mode — entirely separate render path */
+    if (g.displayMode == DisplayMode_Boring) { RenderTodoWindowBoring(); return; }
 
     /* Window setup */
     ImGui::SetNextWindowPos(ImVec2(g.winX, g.winY), ImGuiCond_Always);
@@ -929,6 +931,22 @@ static void RenderTodoWindowBoring() {
     int done = 0;
     for (int idx : visibleIndices) if (g.todos[idx].completed) done++;
     ImGui::Text("%d/%d completed", done, (int)visibleIndices.size());
+
+    /* Collapse timer */
+    if (g.collapseEnabled) {
+        bool anyHovered = ImGui::IsWindowHovered(
+            ImGuiHoveredFlags_ChildWindows |
+            ImGuiHoveredFlags_AllowWhenBlockedByActiveItem |
+            ImGuiHoveredFlags_AllowWhenBlockedByPopup);
+        bool popupOpen = ImGui::IsPopupOpen("TaskContextMenu")
+            || ImGui::IsPopupOpen("Edit Todo")
+            || ImGui::IsPopupOpen("Delete Todo");
+        double now = ImGui::GetTime();
+        if (anyHovered || popupOpen)
+            g.lastHoverTime = now;
+        else if (g.lastHoverTime > 0.0 && (now - g.lastHoverTime) >= (double)g.collapseDelaySec)
+            g.collapsed = true;
+    }
 
     ImGui::End();
 }
