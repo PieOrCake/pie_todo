@@ -599,6 +599,12 @@ static void RenderTodoWindow() {
                     } else {
                         if (h.px) *h.px += d.x;
                         if (h.py) *h.py += d.y;
+                        /* Clamp window-relative positions to stay inside the window (skip RESIZE which uses corner offsets) */
+                        if (i < 4) {
+                            auto fclamp = [](float v, float lo, float hi) { return v < lo ? lo : v > hi ? hi : v; };
+                            if (h.px) *h.px = fclamp(*h.px, 0.f, winW - 4.f);
+                            if (h.py) *h.py = fclamp(*h.py, 0.f, winH - 4.f);
+                        }
                     }
                     MarkDirty();
                 } else {
@@ -702,27 +708,36 @@ static void RenderOptions() {
     ImGui::SameLine();
     ImGui::TextDisabled("(?)");
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Drag the coloured overlays on the window\nto reposition each element.");
+        ImGui::SetTooltip("Drag the coloured overlays on the window\nto reposition each element.\nYellow corner = resize.");
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Reset layout")) {
+        g.posDragY = 8.f; g.posDragH = 48.f;
+        g.posSearchX = 180.f; g.posSearchY = 10.f; g.posSearchW = 110.f;
+        g.posTaskX = 18.f; g.posTaskY = 64.f; g.posTaskBot = 354.f;
+        g.posAddX = 150.f; g.posAddY = 368.f;
+        g.posResizeX = 0.f; g.posResizeY = 0.f; g.posResizeSize = 28.f;
+        MarkDirty();
+    }
 
     if (g.layoutEditMode) {
         ImGui::TextDisabled("Drag handle");
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("DH Y",  &g.posDragY,   -20.f, 200.f, "%.0f")) MarkDirty();
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("DH H",  &g.posDragH,    10.f, 150.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("DH Y",  &g.posDragY,   -500.f, 600.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("DH H",  &g.posDragH,    10.f,  150.f, "%.0f")) MarkDirty();
         ImGui::TextDisabled("Search bar");
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("SR X",  &g.posSearchX, -50.f, 400.f, "%.0f")) MarkDirty();
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("SR Y",  &g.posSearchY, -20.f, 400.f, "%.0f")) MarkDirty();
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("SR W",  &g.posSearchW,  30.f, 300.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("SR X",  &g.posSearchX, -500.f, 600.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("SR Y",  &g.posSearchY, -500.f, 600.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("SR W",  &g.posSearchW,   30.f, 300.f, "%.0f")) MarkDirty();
         ImGui::TextDisabled("Task list");
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("TL X",  &g.posTaskX,     0.f, 150.f, "%.0f")) MarkDirty();
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("TL Y",  &g.posTaskY,    -20.f, 400.f, "%.0f")) MarkDirty();
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("TL Bot",&g.posTaskBot,   50.f, 600.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("TL X",  &g.posTaskX,   -500.f, 600.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("TL Y",  &g.posTaskY,   -500.f, 600.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("TL Bot",&g.posTaskBot,    50.f, 800.f, "%.0f")) MarkDirty();
         ImGui::TextDisabled("Add row");
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("AR X",  &g.posAddX,    -50.f, 400.f, "%.0f")) MarkDirty();
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("AR Y",  &g.posAddY,    -20.f, 600.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("AR X",  &g.posAddX,    -500.f, 600.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("AR Y",  &g.posAddY,    -500.f, 800.f, "%.0f")) MarkDirty();
         ImGui::TextDisabled("Resize grip");
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("RG X",  &g.posResizeX, -200.f, 50.f, "%.0f")) MarkDirty();
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("RG Y",  &g.posResizeY, -200.f, 50.f, "%.0f")) MarkDirty();
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("RG Sz", &g.posResizeSize, 10.f, 80.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("RG X",  &g.posResizeX, -500.f, 100.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("RG Y",  &g.posResizeY, -500.f, 100.f, "%.0f")) MarkDirty();
+        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("RG Sz", &g.posResizeSize, 10.f,  80.f, "%.0f")) MarkDirty();
     }
 
     ImGui::Spacing();
