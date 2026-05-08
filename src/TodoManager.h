@@ -93,15 +93,15 @@ struct AppState {
     /* Element positions — all in window content space (px from content origin) */
     float                 posDragY      =   6.f;
     float                 posDragH      =  29.f;
-    float                 posSearchX    =  82.f;
+    float                 posSearchX    =  90.f;
     float                 posSearchY    =  40.f;
     float                 posSearchW    = 189.f;
-    float                 posTaskX      =  50.f;
-    float                 posTaskW      = 242.f;
+    float                 posTaskX      =  53.f;
+    float                 posTaskW      = 258.f;
     float                 posTaskY      =  97.f;
     float                 posTaskBot    = 320.f;
-    float                 posAddX       =  82.f;
-    float                 posAddY       = 349.f;
+    float                 posAddX       =  83.f;
+    float                 posAddY       = 355.f;
     bool                  layoutEditMode = false;
 
     bool                  collapseEnabled   = false;

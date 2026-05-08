@@ -677,9 +677,9 @@ static void RenderOptions() {
     ImGui::SameLine();
     if (ImGui::SmallButton("Reset layout")) {
         g.posDragY = 6.f;  g.posDragH = 29.f;
-        g.posSearchX = 82.f; g.posSearchY = 40.f; g.posSearchW = 189.f;
-        g.posTaskX = 50.f; g.posTaskW = 242.f; g.posTaskY = 97.f; g.posTaskBot = 320.f;
-        g.posAddX = 82.f; g.posAddY = 349.f;
+        g.posSearchX = 90.f; g.posSearchY = 40.f; g.posSearchW = 189.f;
+        g.posTaskX = 53.f; g.posTaskW = 258.f; g.posTaskY = 97.f; g.posTaskBot = 320.f;
+        g.posAddX = 83.f; g.posAddY = 355.f;
         g.winW = DEFAULT_WINDOW_W; g.winH = DEFAULT_WINDOW_H;
         MarkDirty();
     }
