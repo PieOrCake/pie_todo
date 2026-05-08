@@ -97,6 +97,8 @@ struct AppState {
     float                 layoutSearchInset = 0.f;
     float                 layoutAddInset    = 0.f;
     float                 layoutAddExtraY   = 4.f;
+    float                 layoutDragHandle  = 65.f;
+    float                 layoutResizeGrip  = 28.f;
 
     bool                  collapseEnabled   = false;
     float                 collapseDelaySec  = 2.0f;

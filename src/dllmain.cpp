@@ -195,7 +195,7 @@ static void RenderTodoWindow() {
 
     /* ── Top roll: drag handle + narrowed centred search box ───────────────── */
     ImGui::SetCursorPos(ImVec2(0.f, 0.f));
-    ImGui::InvisibleButton("##drag", ImVec2(ImGui::GetWindowWidth(), winH * g.layoutTopRoll));
+    ImGui::InvisibleButton("##drag", ImVec2(ImGui::GetWindowWidth(), g.layoutDragHandle));
     if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0) && !g.lockPosition) {
         ImVec2 delta = ImGui::GetIO().MouseDelta;
         g.winX += delta.x;
@@ -481,8 +481,9 @@ static void RenderTodoWindow() {
         static bool s_resizing = false;
         ImVec2 wpos = ImGui::GetWindowPos();
         ImVec2 wsz  = ImGui::GetWindowSize();
-        ImVec2 gripMin(wpos.x + wsz.x - RESIZE_GRIP_SIZE, wpos.y + wsz.y - RESIZE_GRIP_SIZE);
-        ImVec2 gripMax(wpos.x + wsz.x,                    wpos.y + wsz.y);
+        float  gs = g.layoutResizeGrip;
+        ImVec2 gripMin(wpos.x + wsz.x - gs, wpos.y + wsz.y - gs);
+        ImVec2 gripMax(wpos.x + wsz.x,      wpos.y + wsz.y);
         ImVec2 mouse = ImGui::GetIO().MousePos;
         bool overGrip = mouse.x >= gripMin.x && mouse.x < gripMax.x
                      && mouse.y >= gripMin.y && mouse.y < gripMax.y;
@@ -494,13 +495,12 @@ static void RenderTodoWindow() {
             ImU32 gripCol = IM_COL32(80, 40, 10, (overGrip || s_resizing) ? 200 : 80);
             /* Filled corner triangle */
             fdl->AddTriangleFilled(
-                ImVec2(gripMax.x,                    gripMax.y - RESIZE_GRIP_SIZE),
-                ImVec2(gripMax.x - RESIZE_GRIP_SIZE, gripMax.y),
-                ImVec2(gripMax.x,                    gripMax.y), gripCol);
-            /* Diagonal lines on top for texture */
+                ImVec2(gripMax.x,      gripMax.y - gs),
+                ImVec2(gripMax.x - gs, gripMax.y),
+                ImVec2(gripMax.x,      gripMax.y), gripCol);
             ImU32 lineCol = IM_COL32(200, 160, 100, (overGrip || s_resizing) ? 220 : 120);
             for (int i = 1; i <= 3; i++) {
-                float o = i * (RESIZE_GRIP_SIZE / 4.f);
+                float o = i * (gs / 4.f);
                 fdl->AddLine(ImVec2(gripMax.x - o,               gripMax.y),
                              ImVec2(gripMax.x,                   gripMax.y - o), lineCol, 1.5f);
             }
@@ -631,6 +631,10 @@ static void RenderOptions() {
     if (ImGui::SliderFloat("Add inset",     &g.layoutAddInset,    -60.f, 120.f, "%.1f")) MarkDirty();
     ImGui::SetNextItemWidth(120.f);
     if (ImGui::SliderFloat("Add offset Y",  &g.layoutAddExtraY,   -20.f,  80.f, "%.1f")) MarkDirty();
+    ImGui::SetNextItemWidth(120.f);
+    if (ImGui::SliderFloat("Drag handle",   &g.layoutDragHandle,   10.f, 150.f, "%.1f")) MarkDirty();
+    ImGui::SetNextItemWidth(120.f);
+    if (ImGui::SliderFloat("Resize grip",   &g.layoutResizeGrip,   10.f,  60.f, "%.1f")) MarkDirty();
 
     ImGui::Spacing();
     ImGui::Separator();

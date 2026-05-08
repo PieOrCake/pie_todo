@@ -115,6 +115,8 @@ void SaveTodos() {
     j["layout_search_inset"]  = g.layoutSearchInset;
     j["layout_add_inset"]     = g.layoutAddInset;
     j["layout_add_extra_y"]   = g.layoutAddExtraY;
+    j["layout_drag_handle"]   = g.layoutDragHandle;
+    j["layout_resize_grip"]   = g.layoutResizeGrip;
     j["collapse_enabled"] = g.collapseEnabled;
     j["collapse_delay_sec"] = g.collapseDelaySec;
     j["float_icon_size"] = g.floatIconSize;
@@ -195,6 +197,8 @@ void LoadTodos() {
     if (j.contains("layout_search_inset"))  g.layoutSearchInset  = j["layout_search_inset"].get<float>();
     if (j.contains("layout_add_inset"))     g.layoutAddInset     = j["layout_add_inset"].get<float>();
     if (j.contains("layout_add_extra_y"))   g.layoutAddExtraY    = j["layout_add_extra_y"].get<float>();
+    if (j.contains("layout_drag_handle"))   g.layoutDragHandle   = j["layout_drag_handle"].get<float>();
+    if (j.contains("layout_resize_grip"))   g.layoutResizeGrip   = j["layout_resize_grip"].get<float>();
     if (j.contains("collapse_enabled"))
         g.collapseEnabled = j["collapse_enabled"].get<bool>();
     if (j.contains("collapse_delay_sec"))
