@@ -13,6 +13,7 @@
 
 enum RepeatType    { Repeat_Daily = 0, Repeat_Weekly = 1 };
 enum CompletedMode { CompletedMode_Colour = 0, CompletedMode_Hide = 1 };
+enum DisplayMode   { DisplayMode_Fancy = 0, DisplayMode_Boring = 1 };
 
 /* ── Constants ─────────────────────────────────────────────────────────────── */
 
@@ -20,6 +21,7 @@ extern const char* ADDON_NAME;
 extern const char* KB_TOGGLE;
 extern const char* QA_ID;
 extern const char* QA_ICON_ID;
+extern const char* QA_ICON_HOV_ID;
 extern const char* QA_ICON_FILENAME;
 
 static constexpr float MIN_WINDOW_DIM    = 200.f;
@@ -83,9 +85,12 @@ struct AppState {
 
     float                 winX = 0.f, winY = 0.f;
     float                 winW = DEFAULT_WINDOW_W, winH = DEFAULT_WINDOW_H;
-    bool                  winGeometryLoaded = false;
     bool                  lockPosition      = false;
     bool                  lockSize          = false;
+
+    int                   displayMode       = DisplayMode_Fancy;
+    float                 boringX = 100.f, boringY = 100.f;
+    float                 boringW = 400.f, boringH = 500.f;
 
     bool                  showQuickAccess   = true;
     bool                  openOnLaunch      = false;
@@ -134,8 +139,8 @@ void SaveTodos();
 void FlushIfDirty();
 void LoadTodos();
 
-void LoadWindowGeometry();
-void SaveWindowGeometry();
+void SaveSettings();
+void LoadSettings();
 
 void CheckResetTimes();
 void RebuildCache();

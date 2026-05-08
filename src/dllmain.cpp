@@ -31,10 +31,99 @@ static constexpr float WRAP_WIDTH         = 280.f;
 static constexpr float DRAG_HANDLE_HEIGHT = 65.f;
 static constexpr float RESIZE_GRIP_SIZE   = 28.f;
 
+/* ── GW2-style ImGui theme (copied from tyrian_home_garden) ─────────────────── */
+
+static ImGuiStyle              g_GW2Style;
+static std::vector<ImGuiStyle> g_StyleStack;
+
+static void PushGW2Theme() {
+    g_StyleStack.push_back(ImGui::GetStyle());
+    ImGui::GetStyle() = g_GW2Style;
+}
+
+static void PopGW2Theme() {
+    if (!g_StyleStack.empty()) {
+        ImGui::GetStyle() = g_StyleStack.back();
+        g_StyleStack.pop_back();
+    }
+}
+
+struct ThemeGuard {
+    ThemeGuard()  { PushGW2Theme(); }
+    ~ThemeGuard() { PopGW2Theme(); }
+};
+
+static void BuildGW2Theme() {
+    g_GW2Style = ImGui::GetStyle();
+    ImGuiStyle& s = g_GW2Style;
+
+    s.WindowRounding    = 6.0f;  s.ChildRounding  = 4.0f;
+    s.FrameRounding     = 4.0f;  s.PopupRounding  = 4.0f;
+    s.ScrollbarRounding = 6.0f;  s.GrabRounding   = 3.0f;
+    s.TabRounding       = 4.0f;
+
+    s.WindowPadding    = ImVec2(10, 10); s.FramePadding     = ImVec2(6, 4);
+    s.ItemSpacing      = ImVec2(8, 5);   s.ItemInnerSpacing = ImVec2(6, 4);
+    s.ScrollbarSize    = 12.0f;          s.GrabMinSize      = 8.0f;
+    s.WindowBorderSize = 1.0f;           s.ChildBorderSize  = 1.0f;
+    s.PopupBorderSize  = 1.0f;           s.FrameBorderSize  = 0.0f;
+    s.TabBorderSize    = 0.0f;
+
+    ImVec4* c = s.Colors;
+    c[ImGuiCol_WindowBg]             = ImVec4(0.08f, 0.08f, 0.10f, 0.96f);
+    c[ImGuiCol_ChildBg]              = ImVec4(0.07f, 0.07f, 0.09f, 0.80f);
+    c[ImGuiCol_PopupBg]              = ImVec4(0.10f, 0.10f, 0.12f, 0.96f);
+    c[ImGuiCol_Border]               = ImVec4(0.28f, 0.25f, 0.18f, 0.50f);
+    c[ImGuiCol_BorderShadow]         = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+    c[ImGuiCol_FrameBg]              = ImVec4(0.14f, 0.13f, 0.11f, 0.80f);
+    c[ImGuiCol_FrameBgHovered]       = ImVec4(0.22f, 0.20f, 0.14f, 0.80f);
+    c[ImGuiCol_FrameBgActive]        = ImVec4(0.28f, 0.25f, 0.16f, 0.90f);
+    c[ImGuiCol_TitleBg]              = ImVec4(0.10f, 0.09f, 0.07f, 1.00f);
+    c[ImGuiCol_TitleBgActive]        = ImVec4(0.16f, 0.14f, 0.08f, 1.00f);
+    c[ImGuiCol_TitleBgCollapsed]     = ImVec4(0.08f, 0.07f, 0.05f, 0.75f);
+    c[ImGuiCol_MenuBarBg]            = ImVec4(0.12f, 0.11f, 0.09f, 1.00f);
+    c[ImGuiCol_ScrollbarBg]          = ImVec4(0.06f, 0.06f, 0.07f, 0.60f);
+    c[ImGuiCol_ScrollbarGrab]        = ImVec4(0.30f, 0.27f, 0.18f, 0.80f);
+    c[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.40f, 0.36f, 0.22f, 0.90f);
+    c[ImGuiCol_ScrollbarGrabActive]  = ImVec4(0.50f, 0.44f, 0.26f, 1.00f);
+    c[ImGuiCol_CheckMark]            = ImVec4(0.90f, 0.75f, 0.25f, 1.00f);
+    c[ImGuiCol_SliderGrab]           = ImVec4(0.70f, 0.58f, 0.20f, 1.00f);
+    c[ImGuiCol_SliderGrabActive]     = ImVec4(0.85f, 0.70f, 0.25f, 1.00f);
+    c[ImGuiCol_Button]               = ImVec4(0.22f, 0.20f, 0.12f, 0.80f);
+    c[ImGuiCol_ButtonHovered]        = ImVec4(0.35f, 0.30f, 0.14f, 0.90f);
+    c[ImGuiCol_ButtonActive]         = ImVec4(0.45f, 0.38f, 0.16f, 1.00f);
+    c[ImGuiCol_Header]               = ImVec4(0.18f, 0.16f, 0.10f, 0.70f);
+    c[ImGuiCol_HeaderHovered]        = ImVec4(0.28f, 0.24f, 0.12f, 0.80f);
+    c[ImGuiCol_HeaderActive]         = ImVec4(0.35f, 0.30f, 0.14f, 0.90f);
+    c[ImGuiCol_Separator]            = ImVec4(0.28f, 0.25f, 0.18f, 0.40f);
+    c[ImGuiCol_SeparatorHovered]     = ImVec4(0.50f, 0.42f, 0.20f, 0.70f);
+    c[ImGuiCol_SeparatorActive]      = ImVec4(0.65f, 0.55f, 0.25f, 1.00f);
+    c[ImGuiCol_ResizeGrip]           = ImVec4(0.30f, 0.27f, 0.18f, 0.30f);
+    c[ImGuiCol_ResizeGripHovered]    = ImVec4(0.50f, 0.44f, 0.26f, 0.60f);
+    c[ImGuiCol_ResizeGripActive]     = ImVec4(0.65f, 0.55f, 0.25f, 0.90f);
+    c[ImGuiCol_Tab]                  = ImVec4(0.14f, 0.13f, 0.10f, 0.86f);
+    c[ImGuiCol_TabHovered]           = ImVec4(0.35f, 0.30f, 0.14f, 0.90f);
+    c[ImGuiCol_TabActive]            = ImVec4(0.28f, 0.24f, 0.10f, 1.00f);
+    c[ImGuiCol_TabUnfocused]         = ImVec4(0.10f, 0.09f, 0.07f, 0.97f);
+    c[ImGuiCol_TabUnfocusedActive]   = ImVec4(0.18f, 0.16f, 0.10f, 1.00f);
+    c[ImGuiCol_Text]                 = ImVec4(0.90f, 0.87f, 0.78f, 1.00f);
+    c[ImGuiCol_TextDisabled]         = ImVec4(0.50f, 0.47f, 0.40f, 1.00f);
+    c[ImGuiCol_ModalWindowDimBg]     = ImVec4(0.00f, 0.00f, 0.00f, 0.60f);
+    c[ImGuiCol_NavHighlight]         = ImVec4(0.70f, 0.58f, 0.20f, 1.00f);
+    c[ImGuiCol_TableHeaderBg]        = ImVec4(0.14f, 0.13f, 0.10f, 1.00f);
+    c[ImGuiCol_TableBorderStrong]    = ImVec4(0.28f, 0.25f, 0.18f, 0.60f);
+    c[ImGuiCol_TableBorderLight]     = ImVec4(0.22f, 0.20f, 0.15f, 0.40f);
+    c[ImGuiCol_TableRowBg]           = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+    c[ImGuiCol_TableRowBgAlt]        = ImVec4(0.10f, 0.10f, 0.08f, 0.30f);
+    c[ImGuiCol_PlotHistogram]        = ImVec4(0.65f, 0.55f, 0.15f, 1.00f);
+    c[ImGuiCol_PlotHistogramHovered] = ImVec4(0.80f, 0.68f, 0.20f, 1.00f);
+}
+
 /* ── Forward declarations ──────────────────────────────────────────────────── */
 
 static void ProcessKeybind(const char* aIdentifier, bool aIsRelease);
 static void RenderTodoWindow();
+static void RenderTodoWindowBoring();
 static void RenderOptions();
 void AddonLoad(AddonAPI_t* aApi);
 void AddonUnload();
@@ -88,6 +177,9 @@ static void RenderTodoWindow() {
     /* Rebuild cache if data or filter changed */
     if (g.cacheDirty || g.searchFilter != g.cachedSearchFilter || g.completedMode != g.cachedCompletedMode)
         RebuildCache();
+
+    /* Boring mode — entirely separate render path */
+    if (g.displayMode == DisplayMode_Boring) { RenderTodoWindowBoring(); return; }
 
     /* Collapsed icon mode */
     if (g.collapseEnabled && g.collapsed) {
@@ -168,7 +260,7 @@ static void RenderTodoWindow() {
     ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, IM_COL32(120, 80,  40,  220));
     static constexpr int SEPIA_COLOUR_COUNT = 17;
 
-    ImGui::SetWindowFontScale(ImGui::GetWindowWidth() / DEFAULT_WINDOW_W);
+    ImGui::SetWindowFontScale((13.0f / ImGui::GetFontSize()) * (ImGui::GetWindowWidth() / DEFAULT_WINDOW_W));
 
     /* ── Background image ───────────────────────────────────────────────────── */
     {
@@ -600,11 +692,253 @@ static void RenderTodoWindow() {
     ImGui::End();
 }
 
+/* ── Boring mode window ─────────────────────────────────────────────────────── */
+
+static void RenderTodoWindowBoring() {
+    if (APIDefs && APIDefs->ImguiContext)
+        ImGui::SetCurrentContext((ImGuiContext*)APIDefs->ImguiContext);
+
+    ThemeGuard themeGuard;
+
+    ImGui::SetNextWindowSizeConstraints(ImVec2(300.f, 200.f), ImVec2(FLT_MAX, FLT_MAX));
+    ImGui::SetNextWindowPos(ImVec2(g.boringX, g.boringY), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(g.boringW, g.boringH), ImGuiCond_FirstUseEver);
+
+    if (!ImGui::Begin("Pie's Awesome ToDo List", &g.windowVisible, ImGuiWindowFlags_NoCollapse)) {
+        ImGui::End();
+        return;
+    }
+
+    /* Track geometry so it's saved on unload */
+    g.boringX = ImGui::GetWindowPos().x;
+    g.boringY = ImGui::GetWindowPos().y;
+    g.boringW = ImGui::GetWindowWidth();
+    g.boringH = ImGui::GetWindowHeight();
+
+    /* ── Add row (top) ─────────────────────────────────────────────────────── */
+    {
+        char newBuf[512];
+        strncpy(newBuf, g.newTaskText.c_str(), sizeof(newBuf) - 1);
+        newBuf[sizeof(newBuf) - 1] = '\0';
+        ImGui::SetNextItemWidth(INPUT_WIDTH);
+        if (ImGui::InputTextWithHint("##newtask", "New task...", newBuf, sizeof(newBuf),
+                                     ImGuiInputTextFlags_EnterReturnsTrue)) {
+            g.newTaskText = newBuf;
+            AddNewTodo();
+        } else {
+            g.newTaskText = newBuf;
+        }
+        ImGui::SameLine();
+        const char* repeatLabels[] = { "Daily", "Weekly" };
+        ImGui::SetNextItemWidth(COMBO_WIDTH);
+        ImGui::Combo("##repeat", (int*)&g.newTaskRepeat, repeatLabels, 2);
+        ImGui::SameLine();
+        if (ImGui::Button("Add")) AddNewTodo();
+    }
+    ImGui::Separator();
+
+    /* ── Search ────────────────────────────────────────────────────────────── */
+    {
+        char searchBuf[256];
+        strncpy(searchBuf, g.searchFilter.c_str(), sizeof(searchBuf) - 1);
+        searchBuf[sizeof(searchBuf) - 1] = '\0';
+        ImGui::SetNextItemWidth(-40.f);
+        if (ImGui::InputTextWithHint("##search", "Search tasks...", searchBuf, sizeof(searchBuf)))
+            g.searchFilter = searchBuf;
+        ImGui::SameLine();
+        if (ImGui::Button("X")) { g.searchFilter.clear(); InvalidateCache(); }
+    }
+    ImGui::Separator();
+
+    /* ── Task list ─────────────────────────────────────────────────────────── */
+    const std::vector<int>& visibleIndices = g.cachedVisibleIndices;
+    float repeatColWidth = ImGui::CalcTextSize("Weekly").x + ImGui::GetStyle().ItemSpacing.x * 2.f;
+    float footerH = ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y;
+
+    g.rowMin.resize(visibleIndices.size());
+    g.rowMax.resize(visibleIndices.size());
+
+    if (ImGui::BeginChild("##borelist", ImVec2(0.f, -footerH), false)) {
+        ImVec2 winPos  = ImGui::GetWindowPos();
+        float  winW    = ImGui::GetWindowWidth();
+
+        for (size_t vi = 0; vi < visibleIndices.size(); vi++) {
+            int idx = visibleIndices[vi];
+            TodoItem& item = g.todos[idx];
+            ImGui::PushID(item.uid.c_str());
+
+            ImVec2 rowPos = ImGui::GetCursorScreenPos();
+
+            /* Full-row selectable (drag-drop source) */
+            ImGui::Selectable("##row", false, ImGuiSelectableFlags_AllowItemOverlap,
+                              ImVec2(ImGui::GetContentRegionAvail().x, 0.f));
+            if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
+                g.dragSourceIdx = idx;
+                ImGui::SetDragDropPayload("PIE_TODO_ROW", &idx, sizeof(int));
+                ImGui::TextUnformatted("Move task");
+                ImGui::EndDragDropSource();
+            }
+            ImGui::SameLine(0, 0);
+            ImGui::SetCursorScreenPos(rowPos);
+
+            /* Checkbox */
+            bool completed = item.completed;
+            if (ImGui::Checkbox("##done", &completed)) {
+                item.completed = completed;
+                MarkDirty();
+                InvalidateCache();
+            }
+            ImGui::SameLine(0, ROW_PADDING);
+
+            /* Task text (green if completed and colour mode) */
+            ImGui::AlignTextToFramePadding();
+            if (completed && g.completedMode == CompletedMode_Colour)
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.35f, 0.82f, 0.35f, 1.0f));
+            ImGui::TextUnformatted(item.text.c_str());
+            if (completed && g.completedMode == CompletedMode_Colour)
+                ImGui::PopStyleColor();
+
+            /* Repeat label right-aligned */
+            ImGui::SameLine(winW - repeatColWidth - ImGui::GetStyle().WindowPadding.x);
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextDisabled(item.repeat == Repeat_Weekly ? "Weekly" : "Daily");
+
+            /* Row background highlight for completed tasks */
+            if (completed && g.completedMode == CompletedMode_Colour) {
+                ImVec2 rMin(winPos.x, rowPos.y);
+                ImVec2 rMax(winPos.x + winW, rowPos.y + ImGui::GetFrameHeightWithSpacing());
+                ImGui::GetWindowDrawList()->AddRectFilled(rMin, rMax, IM_COL32(35, 82, 35, 40));
+            }
+
+            /* Store row rects for context menu hit test */
+            ImVec2 rEnd = ImGui::GetItemRectMax();
+            g.rowMin[vi] = ImVec2(winPos.x, rowPos.y);
+            g.rowMax[vi] = ImVec2(winPos.x + winW, rEnd.y);
+
+            ImGui::PopID();
+        }
+
+        /* Drop target and reorder (same logic as fancy mode) */
+        if (g.dragSourceIdx >= 0) {
+            ImVec2 mouse = ImGui::GetMousePos();
+            int dropVisIdx = -1; bool dropAfter = false;
+            for (size_t vi = 0; vi < visibleIndices.size(); vi++) {
+                if (mouse.y >= g.rowMin[vi].y && mouse.y < g.rowMax[vi].y) {
+                    dropVisIdx = (int)vi;
+                    dropAfter  = mouse.y >= (g.rowMin[vi].y + g.rowMax[vi].y) * 0.5f;
+                    break;
+                }
+            }
+            if (dropVisIdx < 0 && !visibleIndices.empty() && mouse.y >= g.rowMax.back().y)
+                { dropVisIdx = (int)visibleIndices.size() - 1; dropAfter = true; }
+            if (dropVisIdx >= 0) {
+                float lineY = dropAfter ? g.rowMax[dropVisIdx].y : g.rowMin[dropVisIdx].y;
+                float x1 = ImGui::GetWindowPos().x + ROW_PADDING;
+                float x2 = ImGui::GetWindowPos().x + winW - ROW_PADDING;
+                ImU32 lc = IM_COL32(255, 200, 0, 255);
+                ImDrawList* fg = ImGui::GetForegroundDrawList();
+                fg->AddLine(ImVec2(x1, lineY), ImVec2(x2, lineY), lc, 3.f);
+                fg->AddTriangleFilled(ImVec2(x1,lineY),ImVec2(x1-6.f,lineY-5.f),ImVec2(x1-6.f,lineY+5.f),lc);
+                fg->AddTriangleFilled(ImVec2(x2,lineY),ImVec2(x2+6.f,lineY-5.f),ImVec2(x2+6.f,lineY+5.f),lc);
+            }
+            if (ImGui::IsMouseReleased(0)) {
+                if (dropVisIdx >= 0) {
+                    int targetIdx = visibleIndices[dropVisIdx];
+                    if (dropAfter && targetIdx < (int)g.todos.size() - 1) targetIdx++;
+                    if (g.dragSourceIdx != targetIdx) MoveTodo(g.dragSourceIdx, targetIdx);
+                }
+                g.dragSourceIdx = -1;
+            }
+        }
+        g.rowVisibleIndices = visibleIndices;
+    }
+    ImGui::EndChild();
+
+    /* Right-click context menu */
+    if (ImGui::IsMouseClicked(1) && !g.rowMin.empty()) {
+        ImVec2 mouse = ImGui::GetMousePos();
+        for (size_t vi = 0; vi < g.rowMin.size(); vi++) {
+            if (mouse.x >= g.rowMin[vi].x && mouse.x < g.rowMax[vi].x &&
+                mouse.y >= g.rowMin[vi].y && mouse.y < g.rowMax[vi].y) {
+                g.contextMenuUid = g.todos[g.rowVisibleIndices[vi]].uid;
+                ImGui::SetNextWindowPos(mouse);
+                ImGui::OpenPopup("TaskContextMenu");
+                break;
+            }
+        }
+    }
+    if (ImGui::BeginPopup("TaskContextMenu")) {
+        if (ImGui::Selectable("Edit")) {
+            g.editingUid = g.contextMenuUid;
+            int i = IndexForUid(g.contextMenuUid);
+            if (i >= 0) { g.editText = g.todos[i].text; g.editRepeat = g.todos[i].repeat; }
+            g.editPopupPending = true; ImGui::CloseCurrentPopup();
+        }
+        if (ImGui::Selectable("Delete")) {
+            g.deleteConfirmUid = g.contextMenuUid;
+            g.deletePopupPending = true; ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+
+    /* Edit popup */
+    if (g.editPopupPending) { ImGui::OpenPopup("Edit Todo"); g.editPopupPending = false; }
+    if (ImGui::BeginPopupModal("Edit Todo", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        char editBuf[512];
+        strncpy(editBuf, g.editText.c_str(), sizeof(editBuf) - 1); editBuf[sizeof(editBuf)-1] = '\0';
+        ImGui::SetNextItemWidth(EDIT_FIELD_WIDTH);
+        bool enter = ImGui::InputText("Task", editBuf, sizeof(editBuf), ImGuiInputTextFlags_EnterReturnsTrue);
+        g.editText = editBuf;
+        const char* editRepeatLabels[] = { "Daily", "Weekly" };
+        ImGui::Combo("Repeat", (int*)&g.editRepeat, editRepeatLabels, 2);
+        if (ImGui::Button("OK") || enter) {
+            int i = IndexForUid(g.editingUid);
+            if (i >= 0) {
+                std::string trimmed = TrimWhitespace(g.editText);
+                if (!trimmed.empty()) g.todos[i].text = std::move(trimmed);
+                g.todos[i].repeat = g.editRepeat; MarkDirty();
+            }
+            g.editingUid.clear(); ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel")) { g.editingUid.clear(); ImGui::CloseCurrentPopup(); }
+        ImGui::EndPopup();
+    }
+
+    /* Delete confirmation popup */
+    if (g.deletePopupPending) { ImGui::OpenPopup("Delete Todo"); g.deletePopupPending = false; }
+    if (ImGui::BeginPopupModal("Delete Todo", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        int idx = IndexForUid(g.deleteConfirmUid);
+        if (idx >= 0) {
+            ImGui::Text("Delete this task?");
+            ImGui::Text("Task: "); ImGui::SameLine();
+            ImGui::PushTextWrapPos(ImGui::GetCursorPos().x + WRAP_WIDTH);
+            ImGui::TextUnformatted(g.todos[idx].text.c_str()); ImGui::PopTextWrapPos();
+            if (ImGui::Button("Yes")) {
+                g.todos.erase(g.todos.begin() + idx);
+                MarkDirty(); g.deleteConfirmUid.clear(); ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("No")) { g.deleteConfirmUid.clear(); ImGui::CloseCurrentPopup(); }
+        } else { g.deleteConfirmUid.clear(); ImGui::CloseCurrentPopup(); }
+        ImGui::EndPopup();
+    }
+
+    /* ── Footer ────────────────────────────────────────────────────────────── */
+    ImGui::Separator();
+    int done = 0;
+    for (int idx : visibleIndices) if (g.todos[idx].completed) done++;
+    ImGui::Text("%d/%d completed", done, (int)visibleIndices.size());
+
+    ImGui::End();
+}
+
 /* ── Options panel (Nexus addon settings) ──────────────────────────────────── */
 
 static void RenderOptions() {
     if (APIDefs && APIDefs->ImguiContext)
         ImGui::SetCurrentContext((ImGuiContext*)APIDefs->ImguiContext);
+    ThemeGuard themeGuard;
     ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.4f, 1.0f), "Pie's Awesome ToDo List");
     if (ImGui::SmallButton("Homepage")) {
         ShellExecuteA(NULL, "open", "https://pie.rocks.cc/", NULL, NULL, SW_SHOWNORMAL);
@@ -633,6 +967,23 @@ static void RenderOptions() {
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
+    ImGui::Text("Display style:");
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Fancy", g.displayMode == DisplayMode_Fancy)) {
+        g.displayMode = DisplayMode_Fancy; MarkDirty();
+    }
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Boring", g.displayMode == DisplayMode_Boring)) {
+        g.displayMode = DisplayMode_Boring; MarkDirty();
+    }
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Fancy: scroll artwork, fixed size.\nBoring: plain resizable window.");
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
     if (ImGui::Checkbox("Lock window position", &g.lockPosition))
         MarkDirty();
     ImGui::SameLine();
@@ -645,7 +996,7 @@ static void RenderOptions() {
     ImGui::Spacing();
     if (ImGui::Checkbox("Show Quick Access icon", &g.showQuickAccess)) {
         if (g.showQuickAccess)
-            APIDefs->QuickAccess_Add(QA_ID, QA_ICON_ID, QA_ICON_ID, KB_TOGGLE, "ToDo List");
+            APIDefs->QuickAccess_Add(QA_ID, QA_ICON_ID, QA_ICON_HOV_ID, KB_TOGGLE, "ToDo List");
         else
             APIDefs->QuickAccess_Remove(QA_ID);
         MarkDirty();
@@ -665,62 +1016,26 @@ static void RenderOptions() {
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Automatically show the window when the game starts.");
 
+    /* Layout edit mode — disabled; layout is hard-coded. Preserved for future reference.
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
-    if (ImGui::Checkbox("Layout edit mode", &g.layoutEditMode))
-        MarkDirty();
-    ImGui::SameLine();
-    ImGui::TextDisabled("(?)");
+    if (ImGui::Checkbox("Layout edit mode", &g.layoutEditMode)) MarkDirty();
+    ImGui::SameLine(); ImGui::TextDisabled("(?)");
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Drag the coloured overlays on the window\nto reposition each element.\nYellow corner = resize.");
+        ImGui::SetTooltip("Drag the coloured overlays on the window to reposition each element. Yellow corner = resize.");
     ImGui::SameLine();
     if (ImGui::SmallButton("Reset layout")) {
-        g.posDragY = 6.f;  g.posDragH = 29.f;
-        g.posSearchX = 90.f; g.posSearchY = 40.f; g.posSearchW = 189.f;
-        g.posTaskX = 53.f; g.posTaskW = 258.f; g.posTaskY = 97.f; g.posTaskBot = 320.f;
-        g.posAddX = 83.f; g.posAddY = 355.f;
-        g.winW = DEFAULT_WINDOW_W; g.winH = DEFAULT_WINDOW_H;
-        MarkDirty();
+        g.posDragY=6.f; g.posDragH=29.f;
+        g.posSearchX=90.f; g.posSearchY=40.f; g.posSearchW=189.f;
+        g.posTaskX=53.f; g.posTaskW=258.f; g.posTaskY=97.f; g.posTaskBot=320.f;
+        g.posAddX=83.f; g.posAddY=355.f;
+        g.winW=DEFAULT_WINDOW_W; g.winH=DEFAULT_WINDOW_H; MarkDirty();
     }
-
     if (g.layoutEditMode) {
-        ImGui::TextDisabled("Window position");
-        ImGui::SetNextItemWidth(110.f);
-        if (ImGui::SliderFloat("Win X", &g.winX, -500.f, 3000.f, "%.0f")) {
-            ImGui::SetWindowPos(WINDOW_NAME, ImVec2(g.winX, g.winY)); MarkDirty();
-        }
-        ImGui::SetNextItemWidth(110.f);
-        if (ImGui::SliderFloat("Win Y", &g.winY, -500.f, 2000.f, "%.0f")) {
-            ImGui::SetWindowPos(WINDOW_NAME, ImVec2(g.winX, g.winY)); MarkDirty();
-        }
-        ImGui::TextDisabled("Window size (aspect-locked)");
-        ImGui::SetNextItemWidth(110.f);
-        if (ImGui::SliderFloat("Win W", &g.winW, 100.f, 800.f, "%.0f")) {
-            g.winH = g.winW * SCROLL_ASPECT;
-            ImGui::SetWindowSize(WINDOW_NAME, ImVec2(g.winW, g.winH)); MarkDirty();
-        }
-        ImGui::SetNextItemWidth(110.f);
-        if (ImGui::SliderFloat("Win H", &g.winH, 100.f, 800.f, "%.0f")) {
-            g.winW = g.winH / SCROLL_ASPECT;
-            ImGui::SetWindowSize(WINDOW_NAME, ImVec2(g.winW, g.winH)); MarkDirty();
-        }
-        ImGui::TextDisabled("Drag handle");
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("DH Y",  &g.posDragY,   -500.f, 600.f, "%.0f")) MarkDirty();
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("DH H",  &g.posDragH,    10.f,  150.f, "%.0f")) MarkDirty();
-        ImGui::TextDisabled("Search bar");
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("SR X",  &g.posSearchX, -500.f, 600.f, "%.0f")) MarkDirty();
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("SR Y",  &g.posSearchY, -500.f, 600.f, "%.0f")) MarkDirty();
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("SR W",  &g.posSearchW,   30.f, 300.f, "%.0f")) MarkDirty();
-        ImGui::TextDisabled("Task list");
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("TL X",  &g.posTaskX,     0.f, 300.f, "%.0f")) MarkDirty();
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("TL W",  &g.posTaskW,    50.f, 600.f, "%.0f")) MarkDirty();
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("TL Y",  &g.posTaskY,  -500.f, 600.f, "%.0f")) MarkDirty();
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("TL Bot",&g.posTaskBot,   50.f, 800.f, "%.0f")) MarkDirty();
-        ImGui::TextDisabled("Add row");
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("AR X",  &g.posAddX,    -500.f, 600.f, "%.0f")) MarkDirty();
-        ImGui::SetNextItemWidth(110.f); if (ImGui::SliderFloat("AR Y",  &g.posAddY,    -500.f, 800.f, "%.0f")) MarkDirty();
+        // Win X/Y/W/H sliders, DH/SR/TL/AR sliders ...
     }
+    */
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -770,6 +1085,7 @@ static void RenderOptions() {
 void AddonLoad(AddonAPI_t* aApi) {
     APIDefs = aApi;
     ImGui::SetCurrentContext((ImGuiContext*)APIDefs->ImguiContext);
+    BuildGW2Theme();
     ImGui::SetAllocatorFunctions(
         (void* (*)(size_t, void*))APIDefs->ImguiMalloc,
         (void (*)(void*, void*))APIDefs->ImguiFree);
@@ -777,7 +1093,7 @@ void AddonLoad(AddonAPI_t* aApi) {
     APIDefs->Log(LOGL_INFO, ADDON_NAME, "Loading addon...");
 
     LoadTodos();
-    LoadWindowGeometry();
+    LoadSettings();
 
     if (g.openOnLaunch) {
         g.windowVisible = true;
@@ -790,10 +1106,11 @@ void AddonLoad(AddonAPI_t* aApi) {
     APIDefs->GUI_Register(RT_OptionsRender, RenderOptions);
 
     /* Load icons from embedded data and register Quick Access shortcut */
-    APIDefs->Textures_GetOrCreateFromMemory(QA_ICON_ID,    (void*)PTD_ICON,       PTD_ICON_len);
+    APIDefs->Textures_LoadFromMemory(QA_ICON_ID,     (void*)PTD_ICON_NORMAL, PTD_ICON_NORMAL_size, nullptr);
+    APIDefs->Textures_LoadFromMemory(QA_ICON_HOV_ID, (void*)PTD_ICON_NORMAL, PTD_ICON_NORMAL_size, nullptr);
     APIDefs->Textures_GetOrCreateFromMemory(FLOAT_ICON_TEX_ID, (void*)PTD_FLOAT_ICON, PTD_FLOAT_ICON_len);
     if (g.showQuickAccess)
-        APIDefs->QuickAccess_Add(QA_ID, QA_ICON_ID, QA_ICON_ID, KB_TOGGLE, "ToDo List");
+        APIDefs->QuickAccess_Add(QA_ID, QA_ICON_ID, QA_ICON_HOV_ID, KB_TOGGLE, "ToDo List");
 
     std::string today  = GetCurrentUtcDate();
     std::string monday = GetThisMondayDate();
@@ -814,8 +1131,7 @@ void AddonUnload() {
         APIDefs->GUI_Deregister(RenderOptions);
     }
     SaveTodos();
-    if (g.winW >= MIN_WINDOW_DIM && g.winH >= MIN_WINDOW_DIM)
-        SaveWindowGeometry();
+    SaveSettings();
     APIDefs = nullptr;
 }
 

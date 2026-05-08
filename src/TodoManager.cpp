@@ -14,6 +14,7 @@ const char* ADDON_NAME       = "PieTodo";
 const char* KB_TOGGLE        = "KB_PIE_TODO_TOGGLE";
 const char* QA_ID            = "PieTodo_qa";
 const char* QA_ICON_ID       = "PieTodo_icon";
+const char* QA_ICON_HOV_ID   = "PieTodo_icon_hov";
 const char* QA_ICON_FILENAME = "icon\\pie-todo-paper-icon.png";
 
 /* ── Global state ──────────────────────────────────────────────────────────── */
@@ -103,15 +104,6 @@ void SaveTodos() {
         });
     }
     j["todos"] = arr;
-    j["completed_tasks_mode"] = (g.completedMode == CompletedMode_Hide) ? "hide" : "colour";
-    j["lock_position"] = g.lockPosition;
-    j["lock_size"] = g.lockSize;
-    j["show_quick_access"] = g.showQuickAccess;
-    j["open_on_launch"] = g.openOnLaunch;
-    j["collapse_enabled"] = g.collapseEnabled;
-    j["collapse_delay_sec"] = g.collapseDelaySec;
-    j["float_icon_size"] = g.floatIconSize;
-    j["expand_on_click"] = g.expandOnClick;
     if (!g.lastDailyReset.empty())  j["last_daily_reset"]  = g.lastDailyReset;
     if (!g.lastWeeklyReset.empty()) j["last_weekly_reset"] = g.lastWeeklyReset;
 
@@ -140,7 +132,7 @@ void SaveTodos() {
 void FlushIfDirty() {
     if (g.dirty && (ImGui::GetTime() - g.dirtyTimestamp >= DIRTY_SAVE_DELAY)) {
         SaveTodos();
-        SaveWindowGeometry();
+        SaveSettings();
     }
 }
 
@@ -173,24 +165,6 @@ void LoadTodos() {
         }
     }
 
-    if (j.contains("completed_tasks_mode"))
-        g.completedMode = (j["completed_tasks_mode"].get<std::string>() == "hide") ? CompletedMode_Hide : CompletedMode_Colour;
-    if (j.contains("lock_position"))
-        g.lockPosition = j["lock_position"].get<bool>();
-    if (j.contains("lock_size"))
-        g.lockSize = j["lock_size"].get<bool>();
-    if (j.contains("show_quick_access"))
-        g.showQuickAccess = j["show_quick_access"].get<bool>();
-    if (j.contains("open_on_launch"))
-        g.openOnLaunch = j["open_on_launch"].get<bool>();
-    if (j.contains("collapse_enabled"))
-        g.collapseEnabled = j["collapse_enabled"].get<bool>();
-    if (j.contains("collapse_delay_sec"))
-        g.collapseDelaySec = j["collapse_delay_sec"].get<float>();
-    if (j.contains("float_icon_size"))
-        g.floatIconSize = j["float_icon_size"].get<float>();
-    if (j.contains("expand_on_click"))
-        g.expandOnClick = j["expand_on_click"].get<bool>();
     if (j.contains("last_daily_reset"))
         g.lastDailyReset = extractDate(j["last_daily_reset"].get<std::string>());
     if (j.contains("last_weekly_reset"))
@@ -201,87 +175,111 @@ void LoadTodos() {
     InvalidateCache();
 }
 
-/* ── Window geometry ───────────────────────────────────────────────────────── */
+/* ── Settings (settings.json) ──────────────────────────────────────────────── */
 
-void LoadWindowGeometry() {
-    std::string jsonPath   = GetConfigPath("window.json");
-    std::string legacyPath = GetConfigPath("window.ini");
-    if (jsonPath.empty()) return;
-
-    float x = 0.f, y = 0.f, w = 0.f, h = 0.f;
-    bool loaded = false;
-
-    {
-        std::ifstream f(jsonPath);
-        if (f) {
-            json j;
-            try {
-                j = json::parse(f);
-                x = j.value("x", 0.f);
-                y = j.value("y", 0.f);
-                w = j.value("w", 0.f);
-                h = j.value("h", 0.f);
-                g.posDragY   = j.value("pos_drag_y",   g.posDragY);
-                g.posDragH   = j.value("pos_drag_h",   g.posDragH);
-                g.posSearchX = j.value("pos_search_x", g.posSearchX);
-                g.posSearchY = j.value("pos_search_y", g.posSearchY);
-                g.posSearchW = j.value("pos_search_w", g.posSearchW);
-                g.posTaskX   = j.value("pos_task_x",   g.posTaskX);
-                g.posTaskW   = j.value("pos_task_w",   g.posTaskW);
-                g.posTaskY   = j.value("pos_task_y",   g.posTaskY);
-                g.posTaskBot = j.value("pos_task_bot",  g.posTaskBot);
-                g.posAddX    = j.value("pos_add_x",    g.posAddX);
-                g.posAddY    = j.value("pos_add_y",    g.posAddY);
-                loaded = true;
-            } catch (...) {}
-        }
-    }
-
-    if (!loaded && !legacyPath.empty()) {
-        std::ifstream f(legacyPath);
-        if (f && (f >> x >> y >> w >> h)) {
-            loaded = true;
-            f.close();
-            DeleteFileA(legacyPath.c_str());
-        }
-    }
-
-    if (!loaded || w < MIN_WINDOW_DIM || h < MIN_WINDOW_DIM) return;
-
-    /* Clamp position so the window can't land fully off-screen */
-    const float margin  = 50.f;
-    float screenX = (float)GetSystemMetrics(SM_XVIRTUALSCREEN);
-    float screenY = (float)GetSystemMetrics(SM_YVIRTUALSCREEN);
-    float screenW = (float)GetSystemMetrics(SM_CXVIRTUALSCREEN);
-    float screenH = (float)GetSystemMetrics(SM_CYVIRTUALSCREEN);
-    x = std::max(screenX - w + margin, std::min(x, screenX + screenW - margin));
-    y = std::max(screenY,              std::min(y, screenY + screenH - margin));
-
-    g.winX = x; g.winY = y; g.winW = w; g.winH = h;
-    g.winGeometryLoaded = true;
+static void ClampPosition(float& x, float& y, float w, float h) {
+    const float margin = 50.f;
+    float sx = (float)GetSystemMetrics(SM_XVIRTUALSCREEN);
+    float sy = (float)GetSystemMetrics(SM_YVIRTUALSCREEN);
+    float sw = (float)GetSystemMetrics(SM_CXVIRTUALSCREEN);
+    float sh = (float)GetSystemMetrics(SM_CYVIRTUALSCREEN);
+    x = std::max(sx - w + margin, std::min(x, sx + sw - margin));
+    y = std::max(sy,              std::min(y, sy + sh - margin));
 }
 
-void SaveWindowGeometry() {
-    std::string path = GetConfigPath("window.json");
+void SaveSettings() {
+    std::string path = GetConfigPath("settings.json");
     if (path.empty()) return;
     json j;
-    j["x"] = g.winX;
-    j["y"] = g.winY;
-    j["w"] = g.winW;
-    j["h"] = g.winH;
-    j["pos_drag_y"]   = g.posDragY;
-    j["pos_drag_h"]   = g.posDragH;
-    j["pos_search_x"] = g.posSearchX;
-    j["pos_search_y"] = g.posSearchY;
-    j["pos_search_w"] = g.posSearchW;
-    j["pos_task_x"]   = g.posTaskX;
-    j["pos_task_w"]   = g.posTaskW;
-    j["pos_task_y"]   = g.posTaskY;
-    j["pos_task_bot"] = g.posTaskBot;
-    j["pos_add_x"]    = g.posAddX;
-    j["pos_add_y"]    = g.posAddY;
+    j["win_x"]    = g.winX;      j["win_y"]    = g.winY;
+    j["boring_x"] = g.boringX;   j["boring_y"] = g.boringY;
+    j["boring_w"] = g.boringW;   j["boring_h"] = g.boringH;
+    j["completed_tasks_mode"] = (g.completedMode == CompletedMode_Hide) ? "hide" : "colour";
+    j["lock_position"]    = g.lockPosition;
+    j["lock_size"]        = g.lockSize;
+    j["show_quick_access"]= g.showQuickAccess;
+    j["open_on_launch"]   = g.openOnLaunch;
+    j["collapse_enabled"] = g.collapseEnabled;
+    j["collapse_delay_sec"]= g.collapseDelaySec;
+    j["float_icon_size"]  = g.floatIconSize;
+    j["expand_on_click"]  = g.expandOnClick;
+    j["display_mode"]     = g.displayMode;
     std::ofstream f(path);
     if (f) f << j.dump(2) << "\n";
+}
+
+void LoadSettings() {
+    std::string path = GetConfigPath("settings.json");
+    if (path.empty()) return;
+
+    std::ifstream f(path);
+    if (f) {
+        /* Normal load */
+        json j;
+        try { j = json::parse(f); } catch (...) { return; }
+        g.winX    = j.value("win_x",    g.winX);
+        g.winY    = j.value("win_y",    g.winY);
+        g.boringX = j.value("boring_x", g.boringX);
+        g.boringY = j.value("boring_y", g.boringY);
+        g.boringW = j.value("boring_w", g.boringW);
+        g.boringH = j.value("boring_h", g.boringH);
+        if (j.contains("completed_tasks_mode"))
+            g.completedMode = (j["completed_tasks_mode"].get<std::string>() == "hide") ? CompletedMode_Hide : CompletedMode_Colour;
+        g.lockPosition    = j.value("lock_position",     g.lockPosition);
+        g.lockSize        = j.value("lock_size",         g.lockSize);
+        g.showQuickAccess = j.value("show_quick_access", g.showQuickAccess);
+        g.openOnLaunch    = j.value("open_on_launch",    g.openOnLaunch);
+        g.collapseEnabled = j.value("collapse_enabled",  g.collapseEnabled);
+        g.collapseDelaySec= j.value("collapse_delay_sec",g.collapseDelaySec);
+        g.floatIconSize   = j.value("float_icon_size",   g.floatIconSize);
+        g.expandOnClick   = j.value("expand_on_click",   g.expandOnClick);
+        g.displayMode     = j.value("display_mode",      g.displayMode);
+        ClampPosition(g.winX, g.winY, g.winW, g.winH);
+        ClampPosition(g.boringX, g.boringY, g.boringW, g.boringH);
+    } else {
+        /* First run of new version — migrate from old files */
+
+        /* 1. Read preferences from old todos.json */
+        std::string todosPath = GetConfigPath("todos.json");
+        std::ifstream tf(todosPath);
+        if (tf) {
+            json j;
+            try {
+                j = json::parse(tf);
+                if (j.contains("completed_tasks_mode"))
+                    g.completedMode = (j["completed_tasks_mode"].get<std::string>() == "hide") ? CompletedMode_Hide : CompletedMode_Colour;
+                g.lockPosition    = j.value("lock_position",     g.lockPosition);
+                g.lockSize        = j.value("lock_size",         g.lockSize);
+                g.showQuickAccess = j.value("show_quick_access", g.showQuickAccess);
+                g.openOnLaunch    = j.value("open_on_launch",    g.openOnLaunch);
+                g.collapseEnabled = j.value("collapse_enabled",  g.collapseEnabled);
+                g.collapseDelaySec= j.value("collapse_delay_sec",g.collapseDelaySec);
+                g.floatIconSize   = j.value("float_icon_size",   g.floatIconSize);
+                g.expandOnClick   = j.value("expand_on_click",   g.expandOnClick);
+            } catch (...) {}
+        }
+
+        /* 2. Read window geometry from old window.json → boring geometry */
+        std::string winPath = GetConfigPath("window.json");
+        std::ifstream wf(winPath);
+        if (wf) {
+            json j;
+            try {
+                j = json::parse(wf);
+                g.boringX = j.value("x", g.boringX);
+                g.boringY = j.value("y", g.boringY);
+                g.boringW = j.value("w", g.boringW);
+                g.boringH = j.value("h", g.boringH);
+                ClampPosition(g.boringX, g.boringY, g.boringW, g.boringH);
+            } catch (...) {}
+        }
+
+        /* 3. Previous version had no fancy mode — start in boring */
+        g.displayMode = DisplayMode_Boring;
+
+        /* 4. Write settings.json so next run is a normal load */
+        SaveSettings();
+    }
 }
 
 /* ── UID generation ────────────────────────────────────────────────────────── */
