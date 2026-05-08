@@ -137,12 +137,8 @@ static void RenderTodoWindow() {
     }
 
     /* Window setup */
-    if (g.winGeometryLoaded) {
-        ImGui::SetNextWindowPos(ImVec2(g.winX, g.winY), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(g.winW, g.winH), ImGuiCond_FirstUseEver);
-    } else {
-        ImGui::SetNextWindowSize(ImVec2(DEFAULT_WINDOW_W, DEFAULT_WINDOW_H), ImGuiCond_FirstUseEver);
-    }
+    ImGui::SetNextWindowPos(ImVec2(g.winX, g.winY), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(g.winW, g.winH), ImGuiCond_Always);
     ImGuiWindowFlags wflags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBackground
                             | ImGuiWindowFlags_NoResize   | ImGuiWindowFlags_NoScrollbar;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(4.f, 4.f));
@@ -180,9 +176,12 @@ static void RenderTodoWindow() {
         ImVec2 wp  = ImGui::GetWindowPos();
         ImVec2 wsz = ImGui::GetWindowSize();
         Texture_t* bg = APIDefs->Textures_Get(FLOAT_ICON_TEX_ID);
-        if (bg && bg->Resource)
-            ImGui::GetWindowDrawList()->AddImage((ImTextureID)bg->Resource,
-                wp, ImVec2(wp.x + wsz.x, wp.y + wsz.y));
+        if (bg && bg->Resource) {
+            ImDrawList* dl = ImGui::GetWindowDrawList();
+            dl->PushClipRect(wp, ImVec2(wp.x + wsz.x, wp.y + wsz.y), false);
+            dl->AddImage((ImTextureID)bg->Resource, wp, ImVec2(wp.x + wsz.x, wp.y + wsz.y));
+            dl->PopClipRect();
+        }
     }
 
     /* ── Drag handle (invisible strip, visual dots) ──────────────────────────── */
