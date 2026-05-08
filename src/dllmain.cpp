@@ -191,7 +191,7 @@ static void RenderTodoWindow() {
         ImVec2 delta = ImGui::GetIO().MouseDelta;
         g.winX += delta.x;
         g.winY += delta.y;
-        ImGui::SetWindowPos(ImVec2(g.winX, g.winY));
+        MarkDirty();
     }
     if (dragHovered && !g.lockPosition)
         ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
@@ -489,11 +489,8 @@ static void RenderTodoWindow() {
             g.collapsed = true;
     }
 
-    /* Track window geometry (saved on unload, not every frame) */
-    g.winX = ImGui::GetWindowPos().x;
-    g.winY = ImGui::GetWindowPos().y;
-    g.winW = ImGui::GetWindowWidth();
-    g.winH = ImGui::GetWindowHeight();
+    /* W/H are always set via SetNextWindowSize(Always) so they stay in sync.
+       X/Y are managed by SetNextWindowPos(Always) + drag handler above. */
 
     /* ── Layout edit mode overlays ──────────────────────────────────────────── */
     if (g.layoutEditMode) {
@@ -662,10 +659,10 @@ static void RenderOptions() {
         ImGui::SetTooltip("Drag the coloured overlays on the window\nto reposition each element.\nYellow corner = resize.");
     ImGui::SameLine();
     if (ImGui::SmallButton("Reset layout")) {
-        g.posDragY = 40.f; g.posDragH = 29.f;
-        g.posSearchX = 151.f; g.posSearchY = 79.f; g.posSearchW = 189.f;
-        g.posTaskX = 112.f; g.posTaskY = 138.f; g.posTaskBot = 351.f;
-        g.posAddX = 149.f; g.posAddY = 380.f;
+        g.posDragY = 6.f;  g.posDragH = 29.f;
+        g.posSearchX = 82.f; g.posSearchY = 40.f; g.posSearchW = 189.f;
+        g.posTaskX = 50.f; g.posTaskY = 97.f; g.posTaskBot = 320.f;
+        g.posAddX = 82.f; g.posAddY = 349.f;
         g.winW = DEFAULT_WINDOW_W; g.winH = DEFAULT_WINDOW_H;
         MarkDirty();
     }
