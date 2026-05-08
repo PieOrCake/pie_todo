@@ -23,11 +23,13 @@ static const char* WINDOW_NAME        = "Pie's Awesome ToDo List";
 static const char* ICON_WINDOW_NAME   = "##PieTodoIcon";
 static const char* FLOAT_ICON_TEX_ID  = "PieTodo_float_icon";
 
-static constexpr float ROW_PADDING       = 8.f;
-static constexpr float INPUT_WIDTH       = 126.f;
-static constexpr float COMBO_WIDTH       = 80.f;
-static constexpr float EDIT_FIELD_WIDTH  = 300.f;
-static constexpr float WRAP_WIDTH        = 280.f;
+static constexpr float ROW_PADDING        = 8.f;
+static constexpr float INPUT_WIDTH        = 126.f;
+static constexpr float COMBO_WIDTH        = 80.f;
+static constexpr float EDIT_FIELD_WIDTH   = 300.f;
+static constexpr float WRAP_WIDTH         = 280.f;
+static constexpr float DRAG_HANDLE_HEIGHT = 30.f;
+static constexpr float RESIZE_GRIP_SIZE   = 16.f;
 
 /* ── Forward declarations ──────────────────────────────────────────────────── */
 
@@ -140,13 +142,54 @@ static void RenderTodoWindow() {
     } else {
         ImGui::SetNextWindowSize(ImVec2(DEFAULT_WINDOW_W, DEFAULT_WINDOW_H), ImGuiCond_FirstUseEver);
     }
-    ImGuiWindowFlags wflags = ImGuiWindowFlags_None;
-    if (g.lockPosition) wflags |= ImGuiWindowFlags_NoMove;
-    if (g.lockSize) wflags |= ImGuiWindowFlags_NoResize;
-    if (!ImGui::Begin(WINDOW_NAME, &g.windowVisible, wflags)) {
+    ImGuiWindowFlags wflags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBackground
+                            | ImGuiWindowFlags_NoResize   | ImGuiWindowFlags_NoScrollbar;
+    if (!ImGui::Begin(WINDOW_NAME, nullptr, wflags)) {
         ImGui::End();
         return;
     }
+
+    /* ── Sepia colour theme ─────────────────────────────────────────────────── */
+    ImGui::PushStyleColor(ImGuiCol_Text,                 IM_COL32(40,  20,  10,  220));
+    ImGui::PushStyleColor(ImGuiCol_FrameBg,              IM_COL32(210, 180, 140, 120));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered,       IM_COL32(210, 180, 140, 180));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgActive,        IM_COL32(180, 150, 110, 200));
+    ImGui::PushStyleColor(ImGuiCol_CheckMark,            IM_COL32(80,  40,  10,  255));
+    ImGui::PushStyleColor(ImGuiCol_Button,               IM_COL32(180, 150, 110, 160));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered,        IM_COL32(180, 150, 110, 220));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive,         IM_COL32(140, 110, 80,  255));
+    ImGui::PushStyleColor(ImGuiCol_Header,               IM_COL32(180, 150, 110, 80));
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered,        IM_COL32(180, 150, 110, 140));
+    ImGui::PushStyleColor(ImGuiCol_HeaderActive,         IM_COL32(140, 110, 80,  180));
+    ImGui::PushStyleColor(ImGuiCol_Separator,            IM_COL32(120, 80,  40,  140));
+    ImGui::PushStyleColor(ImGuiCol_PopupBg,              IM_COL32(240, 220, 180, 240));
+    ImGui::PushStyleColor(ImGuiCol_ChildBg,              IM_COL32(0,   0,   0,   0));
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarBg,          IM_COL32(0,   0,   0,   0));
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab,        IM_COL32(120, 80,  40,  140));
+    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, IM_COL32(120, 80,  40,  220));
+    static constexpr int SEPIA_COLOUR_COUNT = 17;
+
+    /* ── Background image ───────────────────────────────────────────────────── */
+    {
+        ImVec2 wp  = ImGui::GetWindowPos();
+        ImVec2 wsz = ImGui::GetWindowSize();
+        Texture_t* bg = APIDefs->Textures_Get(FLOAT_ICON_TEX_ID);
+        if (bg && bg->Resource)
+            ImGui::GetWindowDrawList()->AddImage((ImTextureID)bg->Resource,
+                wp, ImVec2(wp.x + wsz.x, wp.y + wsz.y));
+    }
+
+    /* ── Drag handle (top strip) ────────────────────────────────────────────── */
+    ImGui::SetCursorPos(ImVec2(0.f, 0.f));
+    ImGui::InvisibleButton("##drag", ImVec2(ImGui::GetWindowWidth(), DRAG_HANDLE_HEIGHT));
+    if (ImGui::IsItemActive() && ImGui::IsMouseDragging(0) && !g.lockPosition) {
+        ImVec2 delta = ImGui::GetIO().MouseDelta;
+        g.winX += delta.x;
+        g.winY += delta.y;
+        ImGui::SetWindowPos(ImVec2(g.winX, g.winY));
+    }
+    if (ImGui::IsItemHovered() && !g.lockPosition)
+        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
 
     /* New task input row */
     ImGui::SetNextItemWidth(INPUT_WIDTH);
@@ -185,7 +228,8 @@ static void RenderTodoWindow() {
 
     /* Task list child window (leave room for status bar) */
     float statusBarHeight = ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y;
-    if (ImGui::BeginChild("TaskList", ImVec2(-1, -statusBarHeight), true)) {
+    ImGui::SetNextWindowBgAlpha(0.f);
+    if (ImGui::BeginChild("TaskList", ImVec2(-1, -statusBarHeight), false)) {
         const float listWidth = ImGui::GetContentRegionAvail().x;
         ImVec2 winPos = ImGui::GetWindowPos();
         float winWidth = ImGui::GetWindowWidth();
@@ -206,7 +250,7 @@ static void RenderTodoWindow() {
             if (vi % 2 == 1) {
                 ImVec2 zMin = ImVec2(winPos.x, rowStartPos.y);
                 ImVec2 zMax = ImVec2(winPos.x + winWidth, rowStartPos.y + ImGui::GetFrameHeightWithSpacing());
-                ImGui::GetWindowDrawList()->AddRectFilled(zMin, zMax, IM_COL32(255, 255, 255, 10));
+                ImGui::GetWindowDrawList()->AddRectFilled(zMin, zMax, IM_COL32(80, 40, 10, 20));
             }
 
             /* Full-row drag source (invisible selectable spanning available width) */
@@ -240,7 +284,7 @@ static void RenderTodoWindow() {
             if (completed) {
                 ImVec2 rMin = ImVec2(winPos.x, rowStartPos.y);
                 ImVec2 rMax = ImVec2(winPos.x + winWidth, rowStartPos.y + ImGui::GetFrameHeightWithSpacing());
-                ImGui::GetWindowDrawList()->AddRectFilled(rMin, rMax, IM_COL32(100, 230, 100, 90));
+                ImGui::GetWindowDrawList()->AddRectFilled(rMin, rMax, IM_COL32(80, 40, 10, 50));
             }
 
             /* Store full row rect for drag-drop and right-click hit test */
@@ -418,6 +462,44 @@ static void RenderTodoWindow() {
         ImGui::TextUnformatted(statusBuf);
     }
 
+    /* ── Resize grip (bottom-right corner, visible on window hover) ─────────── */
+    {
+        static bool s_resizing = false;
+        ImVec2 wpos = ImGui::GetWindowPos();
+        ImVec2 wsz  = ImGui::GetWindowSize();
+        ImVec2 gripMin(wpos.x + wsz.x - RESIZE_GRIP_SIZE, wpos.y + wsz.y - RESIZE_GRIP_SIZE);
+        ImVec2 gripMax(wpos.x + wsz.x,                    wpos.y + wsz.y);
+        ImVec2 mouse = ImGui::GetIO().MousePos;
+        bool overGrip = mouse.x >= gripMin.x && mouse.x < gripMax.x
+                     && mouse.y >= gripMin.y && mouse.y < gripMax.y;
+        bool winHovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows
+                                                | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+
+        if (winHovered || overGrip || s_resizing) {
+            ImDrawList* fdl = ImGui::GetForegroundDrawList();
+            ImU32 gripCol = IM_COL32(80, 40, 10, (overGrip || s_resizing) ? 220 : 100);
+            for (int i = 1; i <= 3; i++) {
+                float o = i * 4.f;
+                fdl->AddLine(ImVec2(gripMax.x - o, gripMax.y),
+                             ImVec2(gripMax.x,     gripMax.y - o), gripCol, 1.5f);
+            }
+        }
+
+        if (overGrip && ImGui::GetIO().MouseClicked[0])
+            s_resizing = true;
+        if (!ImGui::GetIO().MouseDown[0])
+            s_resizing = false;
+        if (s_resizing) {
+            ImVec2 delta = ImGui::GetIO().MouseDelta;
+            g.winW = std::max(MIN_WINDOW_DIM, g.winW + delta.x);
+            g.winH = std::max(MIN_WINDOW_DIM, g.winH + delta.y);
+            ImGui::SetWindowSize(ImVec2(g.winW, g.winH));
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNWSE);
+        } else if (overGrip) {
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNWSE);
+        }
+    }
+
     /* Collapse timer logic */
     if (g.collapseEnabled) {
         bool anyHovered = ImGui::IsWindowHovered(
@@ -439,6 +521,7 @@ static void RenderTodoWindow() {
     g.winW = ImGui::GetWindowWidth();
     g.winH = ImGui::GetWindowHeight();
 
+    ImGui::PopStyleColor(SEPIA_COLOUR_COUNT);
     ImGui::End();
 }
 
@@ -477,12 +560,10 @@ static void RenderOptions() {
     ImGui::Spacing();
     if (ImGui::Checkbox("Lock window position", &g.lockPosition))
         MarkDirty();
-    if (ImGui::Checkbox("Lock window size", &g.lockSize))
-        MarkDirty();
     ImGui::SameLine();
     ImGui::TextDisabled("(?)");
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Prevent the window from being moved or resized.");
+        ImGui::SetTooltip("Prevent the window from being dragged.");
 
     ImGui::Spacing();
     ImGui::Separator();
