@@ -10,9 +10,9 @@ If an LLM creating software upsets you, then perhaps this repo isn't for you. Mo
 
 ## Screenshots
 
-| Fancy | Boring | Collapsed |
-|---|---|---|
-| ![Fancy mode](screenshots/fancy.png) | ![Boring mode](screenshots/boring.png) | ![Floating icon](screenshots/floating.png) |
+| Main window | Floating icon |
+|---|---|
+| ![Main window](screenshots/boring.png) | ![Floating icon](screenshots/floating.png) |
 
 ## Features
 
