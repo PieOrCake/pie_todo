@@ -144,6 +144,83 @@ static void ProcessKeybind(const char* aIdentifier, bool aIsRelease) {
 
 /* ── Main window rendering ─────────────────────────────────────────────────── */
 
+/* Centre the next popup on the current todo window. Call while that window is the
+ * active ImGui window, just before BeginPopupModal. */
+static void CenterPopupOnWindow() {
+    ImVec2 wpos = ImGui::GetWindowPos();
+    ImVec2 wsz  = ImGui::GetWindowSize();
+    ImGui::SetNextWindowPos(ImVec2(wpos.x + wsz.x * 0.5f, wpos.y + wsz.y * 0.5f),
+                            ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+}
+
+/* Draw the always-visible floating status pip (independent of the main window).
+ * Shows D/W counts; opens/toggles the list on hover or click; draggable when
+ * unlocked, fixed when locked. */
+static void RenderFloatingIcon(double now) {
+    const float sz     = g.floatIconSize;
+    const bool  locked = g.floatIconLocked;
+
+    ImGui::SetNextWindowPos(ImVec2(g.floatX, g.floatY),
+                            locked ? ImGuiCond_Always : ImGuiCond_Appearing);
+    ImGui::SetNextWindowSize(ImVec2(sz, sz));
+    ImGuiWindowFlags iconFlags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize
+        | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBackground
+        | ImGuiWindowFlags_NoFocusOnAppearing;
+    if (locked)
+        iconFlags |= ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus;
+
+    if (ImGui::Begin(ICON_WINDOW_NAME, nullptr, iconFlags)) {
+        Texture_t* tex = APIDefs->Textures_Get(FLOAT_ICON_TEX_ID);
+        if (tex && tex->Resource) {
+            ImVec2 wp = ImGui::GetWindowPos();
+            ImDrawList* dl  = ImGui::GetWindowDrawList();
+            ImDrawList* fdl = ImGui::GetForegroundDrawList();
+            ImVec2 p0(wp.x, wp.y);
+            ImVec2 p1(wp.x + sz, wp.y + sz);
+            dl->AddImage((ImTextureID)tex->Resource, p0, p1);
+
+            /* Completion text centred on icon, scaled with icon size */
+            char dBuf[16], wBuf[16];
+            snprintf(dBuf, sizeof(dBuf), "D:%d/%d", g.cachedDailyDone, g.cachedDailyTotal);
+            snprintf(wBuf, sizeof(wBuf), "W:%d/%d", g.cachedWeeklyDone, g.cachedWeeklyTotal);
+            ImFont* font     = ImGui::GetFont();
+            float   fontSize = sz * 0.19f;
+            float   gap      = fontSize * 0.2f;
+            ImVec2  dSz      = font->CalcTextSizeA(fontSize, FLT_MAX, 0.f, dBuf);
+            ImVec2  wSz      = font->CalcTextSizeA(fontSize, FLT_MAX, 0.f, wBuf);
+            float   totalH   = dSz.y + gap + wSz.y;
+            float   centreX  = p0.x + sz * 0.5f;
+            float   startY   = p0.y + (sz - totalH) * 0.5f;
+            ImU32   textCol  = IM_COL32(40, 20, 10, 220);
+            fdl->AddText(font, fontSize, ImVec2(centreX - dSz.x * 0.5f, startY),              textCol, dBuf);
+            fdl->AddText(font, fontSize, ImVec2(centreX - wSz.x * 0.5f, startY + dSz.y + gap), textCol, wBuf);
+        }
+
+        bool hovered = ImGui::IsWindowHovered();
+        if (locked) {
+            /* Fixed position. Hover opens (and keeps it alive), or click toggles. */
+            if (hovered) {
+                if (g.expandOnClick) {
+                    if (ImGui::IsMouseClicked(0)) { g.windowVisible = !g.windowVisible; g.lastHoverTime = now; }
+                } else {
+                    g.windowVisible = true;
+                    g.lastHoverTime = now;
+                }
+            }
+        } else {
+            /* Draggable: persist the moved position; a click without a real drag
+             * toggles the main window. */
+            ImVec2 wp = ImGui::GetWindowPos();
+            if (wp.x != g.floatX || wp.y != g.floatY) { g.floatX = wp.x; g.floatY = wp.y; MarkDirty(); }
+            if (hovered && ImGui::IsMouseReleased(0)) {
+                ImVec2 dd = ImGui::GetMouseDragDelta(0);
+                if (dd.x * dd.x + dd.y * dd.y < 25.0f) { g.windowVisible = !g.windowVisible; g.lastHoverTime = now; }
+            }
+        }
+    }
+    ImGui::End();
+}
+
 static void RenderTodoWindow() {
     if (APIDefs && APIDefs->ImguiContext)
         ImGui::SetCurrentContext((ImGuiContext*)APIDefs->ImguiContext);
@@ -166,70 +243,26 @@ static void RenderTodoWindow() {
 
     if (g.pendingToggle.exchange(false, std::memory_order_acquire)) {
         g.windowVisible = !g.windowVisible;
-        if (g.windowVisible) {
-            g.collapsed = false;
+        if (g.windowVisible)
             g.lastHoverTime = now;
-        }
     }
+
+    /* Refresh reset state and the render cache whenever anything is on screen —
+     * the pip shows completion counts even while the main window is hidden. */
+    if (g.windowVisible || g.floatIconEnabled) {
+        if (now - g.lastResetCheckTime >= RESET_CHECK_INTERVAL) {
+            g.lastResetCheckTime = now;
+            CheckResetTimes();
+        }
+        if (g.cacheDirty || g.searchFilter != g.cachedSearchFilter || g.completedMode != g.cachedCompletedMode)
+            RebuildCache();
+    }
+
+    /* Always-visible floating status pip, independent of the main window. */
+    if (g.floatIconEnabled)
+        RenderFloatingIcon(now);
+
     if (!g.windowVisible) return;
-
-    /* Periodic reset check */
-    if (now - g.lastResetCheckTime >= RESET_CHECK_INTERVAL) {
-        g.lastResetCheckTime = now;
-        CheckResetTimes();
-    }
-
-    /* Rebuild cache if data or filter changed */
-    if (g.cacheDirty || g.searchFilter != g.cachedSearchFilter || g.completedMode != g.cachedCompletedMode)
-        RebuildCache();
-
-    /* Collapsed icon mode (shared by Fancy and Boring) */
-    if (g.collapseEnabled && g.collapsed) {
-        const float sz = g.floatIconSize;
-        float iconX = (g.displayMode == DisplayMode_Boring) ? g.boringX : g.winX;
-        float iconY = (g.displayMode == DisplayMode_Boring) ? g.boringY : g.winY;
-        ImGui::SetNextWindowPos(ImVec2(iconX, iconY), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(sz, sz));
-        ImGuiWindowFlags iconFlags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize
-            | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoBackground
-            | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus;
-        if (ImGui::Begin(ICON_WINDOW_NAME, nullptr, iconFlags)) {
-            Texture_t* tex = APIDefs->Textures_Get(FLOAT_ICON_TEX_ID);
-            if (tex && tex->Resource) {
-                ImVec2 wp = ImGui::GetWindowPos();
-                ImDrawList* dl  = ImGui::GetWindowDrawList();
-                ImDrawList* fdl = ImGui::GetForegroundDrawList();
-                ImVec2 p0(wp.x, wp.y);
-                ImVec2 p1(wp.x + sz, wp.y + sz);
-                dl->AddImage((ImTextureID)tex->Resource, p0, p1);
-
-                /* Completion text centred on icon, scaled with icon size */
-                char dBuf[16], wBuf[16];
-                snprintf(dBuf, sizeof(dBuf), "D:%d/%d", g.cachedDailyDone, g.cachedDailyTotal);
-                snprintf(wBuf, sizeof(wBuf), "W:%d/%d", g.cachedWeeklyDone, g.cachedWeeklyTotal);
-                ImFont* font     = ImGui::GetFont();
-                float   fontSize = sz * 0.19f;
-                float   gap      = fontSize * 0.2f;
-                ImVec2  dSz      = font->CalcTextSizeA(fontSize, FLT_MAX, 0.f, dBuf);
-                ImVec2  wSz      = font->CalcTextSizeA(fontSize, FLT_MAX, 0.f, wBuf);
-                float   totalH   = dSz.y + gap + wSz.y;
-                float   centreX  = p0.x + sz * 0.5f;
-                float   startY   = p0.y + (sz - totalH) * 0.5f;
-                ImU32   textCol  = IM_COL32(40, 20, 10, 220);
-                fdl->AddText(font, fontSize, ImVec2(centreX - dSz.x * 0.5f, startY),              textCol, dBuf);
-                fdl->AddText(font, fontSize, ImVec2(centreX - wSz.x * 0.5f, startY + dSz.y + gap), textCol, wBuf);
-            }
-
-            if (ImGui::IsWindowHovered()) {
-                if (!g.expandOnClick || ImGui::IsMouseClicked(0)) {
-                    g.collapsed = false;
-                    g.lastHoverTime = now;
-                }
-            }
-        }
-        ImGui::End();
-        return;
-    }
 
     /* Boring mode — entirely separate render path */
     if (g.displayMode == DisplayMode_Boring) { RenderTodoWindowBoring(); return; }
@@ -506,6 +539,7 @@ static void RenderTodoWindow() {
         ImGui::OpenPopup("Edit Todo");
         g.editPopupPending = false;
     }
+    CenterPopupOnWindow();
     if (ImGui::BeginPopupModal("Edit Todo", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         char editBuf[512];
         strncpy(editBuf, g.editText.c_str(), sizeof(editBuf) - 1);
@@ -540,6 +574,7 @@ static void RenderTodoWindow() {
         ImGui::OpenPopup("Delete Todo");
         g.deletePopupPending = false;
     }
+    CenterPopupOnWindow();
     if (ImGui::BeginPopupModal("Delete Todo", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         int idx = IndexForUid(g.deleteConfirmUid);
         if (idx >= 0) {
@@ -590,8 +625,8 @@ static void RenderTodoWindow() {
     }
 
 
-    /* Collapse timer logic */
-    if (g.collapseEnabled) {
+    /* Auto-hide timer — hide the main window after the mouse leaves it. */
+    if (g.autoHideEnabled) {
         bool anyHovered = ImGui::IsWindowHovered(
             ImGuiHoveredFlags_ChildWindows |
             ImGuiHoveredFlags_AllowWhenBlockedByActiveItem |
@@ -601,8 +636,8 @@ static void RenderTodoWindow() {
             || ImGui::IsPopupOpen("Delete Todo");
         if (anyHovered || popupOpen)
             g.lastHoverTime = now;
-        else if (g.lastHoverTime > 0.0 && (now - g.lastHoverTime) >= (double)g.collapseDelaySec)
-            g.collapsed = true;
+        else if (g.lastHoverTime > 0.0 && (now - g.lastHoverTime) >= (double)g.autoHideDelaySec)
+            g.windowVisible = false;
     }
 
     /* W/H are always set via SetNextWindowSize(Always) so they stay in sync.
@@ -799,8 +834,12 @@ static void RenderTodoWindowBoring() {
 
             /* Task text (green if completed and colour mode) */
             ImGui::AlignTextToFramePadding();
+            /* Completed rows are green by default, or the Pie UI accent when that theme is active. */
+            ImU32 completedAccent = (g.usePieTheme && PieTheme::HasPalette()) ? PieTheme::Accent() : 0;
             if (completed && g.completedMode == CompletedMode_Colour)
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.35f, 0.82f, 0.35f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_Text,
+                    completedAccent ? ImGui::ColorConvertU32ToFloat4(completedAccent)
+                                    : ImVec4(0.35f, 0.82f, 0.35f, 1.0f));
             ImGui::TextUnformatted(item.text.c_str());
             if (completed && g.completedMode == CompletedMode_Colour)
                 ImGui::PopStyleColor();
@@ -812,9 +851,11 @@ static void RenderTodoWindowBoring() {
 
             /* Row background highlight for completed tasks */
             if (completed && g.completedMode == CompletedMode_Colour) {
+                ImU32 rowCol = completedAccent ? ((completedAccent & 0x00FFFFFFu) | (40u << 24))
+                                               : IM_COL32(35, 82, 35, 40);
                 ImVec2 rMin(winPos.x, rowPos.y);
                 ImVec2 rMax(winPos.x + winW, rowPos.y + ImGui::GetFrameHeightWithSpacing());
-                ImGui::GetWindowDrawList()->AddRectFilled(rMin, rMax, IM_COL32(35, 82, 35, 40));
+                ImGui::GetWindowDrawList()->AddRectFilled(rMin, rMax, rowCol);
             }
 
             /* Store row rects for context menu hit test */
@@ -890,6 +931,7 @@ static void RenderTodoWindowBoring() {
 
     /* Edit popup */
     if (g.editPopupPending) { ImGui::OpenPopup("Edit Todo"); g.editPopupPending = false; }
+    CenterPopupOnWindow();
     if (ImGui::BeginPopupModal("Edit Todo", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         char editBuf[512];
         strncpy(editBuf, g.editText.c_str(), sizeof(editBuf) - 1); editBuf[sizeof(editBuf)-1] = '\0';
@@ -914,6 +956,7 @@ static void RenderTodoWindowBoring() {
 
     /* Delete confirmation popup */
     if (g.deletePopupPending) { ImGui::OpenPopup("Delete Todo"); g.deletePopupPending = false; }
+    CenterPopupOnWindow();
     if (ImGui::BeginPopupModal("Delete Todo", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         int idx = IndexForUid(g.deleteConfirmUid);
         if (idx >= 0) {
@@ -937,8 +980,8 @@ static void RenderTodoWindowBoring() {
     for (int idx : visibleIndices) if (g.todos[idx].completed) done++;
     ImGui::Text("%d/%d completed", done, (int)visibleIndices.size());
 
-    /* Collapse timer */
-    if (g.collapseEnabled) {
+    /* Auto-hide timer — hide the main window after the mouse leaves it. */
+    if (g.autoHideEnabled) {
         bool anyHovered = ImGui::IsWindowHovered(
             ImGuiHoveredFlags_ChildWindows |
             ImGuiHoveredFlags_AllowWhenBlockedByActiveItem |
@@ -949,8 +992,8 @@ static void RenderTodoWindowBoring() {
         double now = ImGui::GetTime();
         if (anyHovered || popupOpen)
             g.lastHoverTime = now;
-        else if (g.lastHoverTime > 0.0 && (now - g.lastHoverTime) >= (double)g.collapseDelaySec)
-            g.collapsed = true;
+        else if (g.lastHoverTime > 0.0 && (now - g.lastHoverTime) >= (double)g.autoHideDelaySec)
+            g.windowVisible = false;
     }
 
     ImGui::End();
@@ -1063,41 +1106,49 @@ static void RenderOptions() {
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
-    if (ImGui::Checkbox("Collapse to icon", &g.collapseEnabled)) {
-        if (g.collapseEnabled) {
-            g.windowVisible = true;
-            g.collapsed = true;
-        } else {
-            g.collapsed = false;
-        }
+
+    /* ── Floating icon ─────────────────────────────────────────────────────── */
+    if (ImGui::Checkbox("Show floating icon", &g.floatIconEnabled))
         MarkDirty();
-    }
     ImGui::SameLine();
     ImGui::TextDisabled("(?)");
-    if (ImGui::IsItemHovered()) {
-        ImGui::SetTooltip("The window collapses to an icon after the mouse leaves.\nHover or click the icon to expand.");
-    }
-    if (g.collapseEnabled) {
-        ImGui::SetNextItemWidth(100.f);
-        if (ImGui::InputFloat("Delay (seconds)", &g.collapseDelaySec, 0.5f, 1.0f, "%.1f")) {
-            if (g.collapseDelaySec < 0.5f) g.collapseDelaySec = 0.5f;
-            if (g.collapseDelaySec > 30.0f) g.collapseDelaySec = 30.0f;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("A small always-visible icon showing your daily/weekly progress.\nClick or hover it to open the list.");
+    if (g.floatIconEnabled) {
+        if (ImGui::Checkbox("Lock icon position", &g.floatIconLocked))
             MarkDirty();
-        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("(?)");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Unlock to drag the icon anywhere; click it to open the list.");
         ImGui::SetNextItemWidth(100.f);
         if (ImGui::SliderFloat("Icon size", &g.floatIconSize, 32.f, 128.f, "%.0f")) {
             g.floatIconSize = std::max(32.f, std::min(g.floatIconSize, 128.f));
             MarkDirty();
         }
-        ImGui::Text("Expand icon on:");
-        ImGui::SameLine();
-        if (ImGui::RadioButton("Hover", !g.expandOnClick)) {
-            g.expandOnClick = false;
-            MarkDirty();
+        if (g.floatIconLocked) {
+            ImGui::Text("Open on:");
+            ImGui::SameLine();
+            if (ImGui::RadioButton("Hover", !g.expandOnClick)) { g.expandOnClick = false; MarkDirty(); }
+            ImGui::SameLine();
+            if (ImGui::RadioButton("Click", g.expandOnClick))  { g.expandOnClick = true;  MarkDirty(); }
         }
-        ImGui::SameLine();
-        if (ImGui::RadioButton("Click", g.expandOnClick)) {
-            g.expandOnClick = true;
+    }
+
+    ImGui::Spacing();
+
+    /* ── Auto-hide ─────────────────────────────────────────────────────────── */
+    if (ImGui::Checkbox("Auto-hide window", &g.autoHideEnabled))
+        MarkDirty();
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Hides the list a moment after the mouse leaves it.\nBring it back with the floating icon, the Quick Access icon, or the hotkey.");
+    if (g.autoHideEnabled) {
+        ImGui::SetNextItemWidth(100.f);
+        if (ImGui::InputFloat("Hide after (seconds)", &g.autoHideDelaySec, 0.5f, 1.0f, "%.1f")) {
+            if (g.autoHideDelaySec < 0.5f)  g.autoHideDelaySec = 0.5f;
+            if (g.autoHideDelaySec > 30.0f) g.autoHideDelaySec = 30.0f;
             MarkDirty();
         }
     }
@@ -1118,11 +1169,8 @@ void AddonLoad(AddonAPI_t* aApi) {
     LoadTodos();
     LoadSettings();
 
-    if (g.openOnLaunch) {
+    if (g.openOnLaunch)
         g.windowVisible = true;
-        if (g.collapseEnabled)
-            g.collapsed = true;
-    }
 
     APIDefs->InputBinds_RegisterWithString(KB_TOGGLE, ProcessKeybind, "CTRL+SHIFT+T");
     APIDefs->GUI_Register(RT_Render, RenderTodoWindow);

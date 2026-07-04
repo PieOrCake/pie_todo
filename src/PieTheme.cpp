@@ -43,6 +43,12 @@ bool HasPalette() {
     return s_has.load(std::memory_order_acquire);
 }
 
+ImU32 Accent() {
+    if (!s_has.load(std::memory_order_acquire)) return 0;
+    std::lock_guard<std::mutex> lk(s_mutex);
+    return s_theme.accent;
+}
+
 void ApplyTo(ImGuiStyle& style) {
     if (!s_has.load(std::memory_order_acquire)) return;
     std::lock_guard<std::mutex> lk(s_mutex);

@@ -110,11 +110,16 @@ struct AppState {
     float                 posAddY       = 355.f;
     bool                  layoutEditMode = false;
 
-    bool                  collapseEnabled   = false;
-    float                 collapseDelaySec  = 2.0f;
+    /* Floating status pip — an always-visible icon, independent of the window */
+    bool                  floatIconEnabled  = false;
+    bool                  floatIconLocked   = true;   /* false = draggable */
+    float                 floatX = 100.f, floatY = 100.f;
     float                 floatIconSize     = 64.f;
-    bool                  expandOnClick     = false;
-    bool                  collapsed         = false;
+    bool                  expandOnClick     = false;  /* false = hover to open (when locked), true = click */
+
+    /* Auto-hide — hides the main window after inactivity, independent of the pip */
+    bool                  autoHideEnabled   = false;
+    float                 autoHideDelaySec  = 2.0f;
     double                lastHoverTime     = 0.0;
 
     FILETIME              lastFileWriteTime = {};

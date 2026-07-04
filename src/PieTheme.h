@@ -34,4 +34,5 @@ namespace PieTheme {
     void Shutdown();                   /* unsubscribe */
     bool HasPalette();                 /* true once a valid palette has arrived */
     void ApplyTo(ImGuiStyle& style);   /* overwrite style.Colors from the copy */
+    ImU32 Accent();                    /* Pie's signature highlight (IM_COL32); 0 if none */
 }

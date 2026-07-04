@@ -199,10 +199,14 @@ void SaveSettings() {
     j["lock_size"]        = g.lockSize;
     j["show_quick_access"]= g.showQuickAccess;
     j["open_on_launch"]   = g.openOnLaunch;
-    j["collapse_enabled"] = g.collapseEnabled;
-    j["collapse_delay_sec"]= g.collapseDelaySec;
-    j["float_icon_size"]  = g.floatIconSize;
-    j["expand_on_click"]  = g.expandOnClick;
+    j["float_icon_enabled"]  = g.floatIconEnabled;
+    j["float_icon_locked"]   = g.floatIconLocked;
+    j["float_x"]             = g.floatX;
+    j["float_y"]             = g.floatY;
+    j["float_icon_size"]     = g.floatIconSize;
+    j["expand_on_click"]     = g.expandOnClick;
+    j["auto_hide_enabled"]   = g.autoHideEnabled;
+    j["auto_hide_delay_sec"] = g.autoHideDelaySec;
     j["display_mode"]     = g.displayMode;
     j["use_pie_theme"]    = g.usePieTheme;
     std::ofstream f(path);
@@ -230,11 +234,19 @@ void LoadSettings() {
         g.lockSize        = j.value("lock_size",         g.lockSize);
         g.showQuickAccess = j.value("show_quick_access", g.showQuickAccess);
         g.openOnLaunch    = j.value("open_on_launch",    g.openOnLaunch);
-        g.collapseEnabled = j.value("collapse_enabled",  g.collapseEnabled);
-        g.collapseDelaySec= j.value("collapse_delay_sec",g.collapseDelaySec);
-        g.floatIconSize   = j.value("float_icon_size",   g.floatIconSize);
-        g.expandOnClick   = j.value("expand_on_click",   g.expandOnClick);
-        g.displayMode     = j.value("display_mode",      g.displayMode);
+        /* Old "collapse to icon" bundled the pip and auto-hide; migrate it as the
+         * default for the new split settings if the new keys are absent. */
+        bool  oldCollapse = j.value("collapse_enabled",   false);
+        float oldDelay    = j.value("collapse_delay_sec", 2.0f);
+        g.floatIconEnabled = j.value("float_icon_enabled",  oldCollapse);
+        g.floatIconLocked  = j.value("float_icon_locked",   g.floatIconLocked);
+        g.floatX           = j.value("float_x",             g.floatX);
+        g.floatY           = j.value("float_y",             g.floatY);
+        g.floatIconSize    = j.value("float_icon_size",     g.floatIconSize);
+        g.expandOnClick    = j.value("expand_on_click",     g.expandOnClick);
+        g.autoHideEnabled  = j.value("auto_hide_enabled",   oldCollapse);
+        g.autoHideDelaySec = j.value("auto_hide_delay_sec", oldDelay);
+        g.displayMode      = j.value("display_mode",        g.displayMode);
         g.usePieTheme     = j.value("use_pie_theme",     g.usePieTheme);
         ClampPosition(g.winX, g.winY, g.winW, g.winH);
         ClampPosition(g.boringX, g.boringY, g.boringW, g.boringH);
@@ -254,10 +266,12 @@ void LoadSettings() {
                 g.lockSize        = j.value("lock_size",         g.lockSize);
                 g.showQuickAccess = j.value("show_quick_access", g.showQuickAccess);
                 g.openOnLaunch    = j.value("open_on_launch",    g.openOnLaunch);
-                g.collapseEnabled = j.value("collapse_enabled",  g.collapseEnabled);
-                g.collapseDelaySec= j.value("collapse_delay_sec",g.collapseDelaySec);
-                g.floatIconSize   = j.value("float_icon_size",   g.floatIconSize);
-                g.expandOnClick   = j.value("expand_on_click",   g.expandOnClick);
+                bool  oldCollapse = j.value("collapse_enabled",   false);
+                g.floatIconEnabled = oldCollapse;
+                g.autoHideEnabled  = oldCollapse;
+                g.autoHideDelaySec = j.value("collapse_delay_sec", g.autoHideDelaySec);
+                g.floatIconSize    = j.value("float_icon_size",    g.floatIconSize);
+                g.expandOnClick    = j.value("expand_on_click",    g.expandOnClick);
             } catch (...) {}
         }
 
