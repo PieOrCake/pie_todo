@@ -204,6 +204,7 @@ void SaveSettings() {
     j["float_icon_size"]  = g.floatIconSize;
     j["expand_on_click"]  = g.expandOnClick;
     j["display_mode"]     = g.displayMode;
+    j["use_pie_theme"]    = g.usePieTheme;
     std::ofstream f(path);
     if (f) f << j.dump(2) << "\n";
 }
@@ -234,6 +235,7 @@ void LoadSettings() {
         g.floatIconSize   = j.value("float_icon_size",   g.floatIconSize);
         g.expandOnClick   = j.value("expand_on_click",   g.expandOnClick);
         g.displayMode     = j.value("display_mode",      g.displayMode);
+        g.usePieTheme     = j.value("use_pie_theme",     g.usePieTheme);
         ClampPosition(g.winX, g.winY, g.winW, g.winH);
         ClampPosition(g.boringX, g.boringY, g.boringW, g.boringH);
     } else {

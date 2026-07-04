@@ -40,6 +40,7 @@ set(IMGUI_SOURCES
 set(SOURCES
     src/dllmain.cpp
     src/TodoManager.cpp
+    src/PieTheme.cpp
     src/Shared.cpp
     ${IMGUI_SOURCES}
 )

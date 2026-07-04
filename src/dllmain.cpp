@@ -8,6 +8,7 @@
 #include "imgui.h"
 #include "TodoManager.h"
 #include "Shared.h"
+#include "PieTheme.h"
 #include "ptd_icon.h"
 #include "ptd_float_icon.h"
 
@@ -39,6 +40,10 @@ static std::vector<ImGuiStyle> g_StyleStack;
 static void PushGW2Theme() {
     g_StyleStack.push_back(ImGui::GetStyle());
     ImGui::GetStyle() = g_GW2Style;
+    /* If Pie UI is broadcasting a palette and the user wants it, recolour on top
+     * of the GW2 layout (keeps our rounding/spacing, swaps only the colours). */
+    if (g.usePieTheme && PieTheme::HasPalette())
+        PieTheme::ApplyTo(ImGui::GetStyle());
 }
 
 static void PopGW2Theme() {
@@ -998,6 +1003,14 @@ static void RenderOptions() {
         ImGui::SetTooltip("Fancy: scroll artwork, fixed size.\nBoring: plain resizable window.");
 
     ImGui::Spacing();
+    if (ImGui::Checkbox("Use Pie UI theme (if available)", &g.usePieTheme))
+        MarkDirty();
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Match Pie UI's colours in Boring mode when the Pie UI addon is running.\nHas no effect on Fancy mode.");
+
+    ImGui::Spacing();
     if (ImGui::Checkbox("Lock window position", &g.lockPosition))
         MarkDirty();
     ImGui::SameLine();
@@ -1115,6 +1128,9 @@ void AddonLoad(AddonAPI_t* aApi) {
     APIDefs->GUI_Register(RT_Render, RenderTodoWindow);
     APIDefs->GUI_Register(RT_OptionsRender, RenderOptions);
 
+    /* Subscribe to Pie UI's theme broadcast and ask it to (re-)send. */
+    PieTheme::Init();
+
     /* Load icons from embedded data and register Quick Access shortcut */
     APIDefs->Textures_LoadFromMemory(QA_ICON_ID,     (void*)PTD_ICON_NORMAL, PTD_ICON_NORMAL_size, nullptr);
     APIDefs->Textures_LoadFromMemory(QA_ICON_HOV_ID, (void*)PTD_ICON_HOV,    PTD_ICON_HOV_size,    nullptr);
@@ -1139,6 +1155,7 @@ void AddonUnload() {
         APIDefs->InputBinds_Deregister(KB_TOGGLE);
         APIDefs->GUI_Deregister(RenderTodoWindow);
         APIDefs->GUI_Deregister(RenderOptions);
+        PieTheme::Shutdown();
     }
     SaveTodos();
     SaveSettings();

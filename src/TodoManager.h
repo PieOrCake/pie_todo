@@ -94,6 +94,7 @@ struct AppState {
 
     bool                  showQuickAccess   = true;
     bool                  openOnLaunch      = false;
+    bool                  usePieTheme       = true;  /* Boring mode: match Pie UI palette if broadcast */
 
     /* Element positions — all in window content space (px from content origin) */
     float                 posDragY      =   6.f;
