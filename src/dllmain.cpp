@@ -811,9 +811,10 @@ static void RenderTodoWindowBoring() {
 
             ImVec2 rowPos = ImGui::GetCursorScreenPos();
 
-            /* Full-row selectable (drag-drop source) */
+            /* Full-row selectable (drag-drop source). Height matches the checkbox
+             * frame so the hover highlight covers the whole row, not just the text line. */
             ImGui::Selectable("##row", false, ImGuiSelectableFlags_AllowItemOverlap,
-                              ImVec2(ImGui::GetContentRegionAvail().x, 0.f));
+                              ImVec2(ImGui::GetContentRegionAvail().x, ImGui::GetFrameHeight()));
             if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
                 g.dragSourceIdx = idx;
                 ImGui::SetDragDropPayload("PIE_TODO_ROW", &idx, sizeof(int));
