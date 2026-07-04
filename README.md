@@ -10,9 +10,9 @@ If an LLM creating software upsets you, then perhaps this repo isn't for you. Mo
 
 ## Screenshots
 
-| Main window | Floating icon |
-|---|---|
-| ![Main window](screenshots/boring.png) | ![Floating icon](screenshots/floating.png) |
+| Default | Matched to Pie UI | Matched to Pie UI | Floating icon |
+|---|---|---|---|
+| ![Default theme](screenshots/one.png) | ![Pie UI theme](screenshots/two.png) | ![Pie UI theme](screenshots/three.png) | ![Floating icon](screenshots/floating.png) |
 
 ## Features
 
