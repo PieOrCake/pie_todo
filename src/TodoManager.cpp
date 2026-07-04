@@ -191,12 +191,9 @@ void SaveSettings() {
     std::string path = GetConfigPath("settings.json");
     if (path.empty()) return;
     json j;
-    j["win_x"]    = g.winX;      j["win_y"]    = g.winY;
     j["boring_x"] = g.boringX;   j["boring_y"] = g.boringY;
     j["boring_w"] = g.boringW;   j["boring_h"] = g.boringH;
     j["completed_tasks_mode"] = (g.completedMode == CompletedMode_Hide) ? "hide" : "colour";
-    j["lock_position"]    = g.lockPosition;
-    j["lock_size"]        = g.lockSize;
     j["show_quick_access"]= g.showQuickAccess;
     j["open_on_launch"]   = g.openOnLaunch;
     j["float_icon_enabled"]  = g.floatIconEnabled;
@@ -207,7 +204,6 @@ void SaveSettings() {
     j["expand_on_click"]     = g.expandOnClick;
     j["auto_hide_enabled"]   = g.autoHideEnabled;
     j["auto_hide_delay_sec"] = g.autoHideDelaySec;
-    j["display_mode"]     = g.displayMode;
     j["use_pie_theme"]    = g.usePieTheme;
     std::ofstream f(path);
     if (f) f << j.dump(2) << "\n";
@@ -222,16 +218,12 @@ void LoadSettings() {
         /* Normal load */
         json j;
         try { j = json::parse(f); } catch (...) { return; }
-        g.winX    = j.value("win_x",    g.winX);
-        g.winY    = j.value("win_y",    g.winY);
         g.boringX = j.value("boring_x", g.boringX);
         g.boringY = j.value("boring_y", g.boringY);
         g.boringW = j.value("boring_w", g.boringW);
         g.boringH = j.value("boring_h", g.boringH);
         if (j.contains("completed_tasks_mode"))
             g.completedMode = (j["completed_tasks_mode"].get<std::string>() == "hide") ? CompletedMode_Hide : CompletedMode_Colour;
-        g.lockPosition    = j.value("lock_position",     g.lockPosition);
-        g.lockSize        = j.value("lock_size",         g.lockSize);
         g.showQuickAccess = j.value("show_quick_access", g.showQuickAccess);
         g.openOnLaunch    = j.value("open_on_launch",    g.openOnLaunch);
         /* Old "collapse to icon" bundled the pip and auto-hide; migrate it as the
@@ -246,9 +238,7 @@ void LoadSettings() {
         g.expandOnClick    = j.value("expand_on_click",     g.expandOnClick);
         g.autoHideEnabled  = j.value("auto_hide_enabled",   oldCollapse);
         g.autoHideDelaySec = j.value("auto_hide_delay_sec", oldDelay);
-        g.displayMode      = j.value("display_mode",        g.displayMode);
-        g.usePieTheme     = j.value("use_pie_theme",     g.usePieTheme);
-        ClampPosition(g.winX, g.winY, g.winW, g.winH);
+        g.usePieTheme      = j.value("use_pie_theme",       g.usePieTheme);
         ClampPosition(g.boringX, g.boringY, g.boringW, g.boringH);
     } else {
         /* First run of new version — migrate from old files */
@@ -262,8 +252,6 @@ void LoadSettings() {
                 j = json::parse(tf);
                 if (j.contains("completed_tasks_mode"))
                     g.completedMode = (j["completed_tasks_mode"].get<std::string>() == "hide") ? CompletedMode_Hide : CompletedMode_Colour;
-                g.lockPosition    = j.value("lock_position",     g.lockPosition);
-                g.lockSize        = j.value("lock_size",         g.lockSize);
                 g.showQuickAccess = j.value("show_quick_access", g.showQuickAccess);
                 g.openOnLaunch    = j.value("open_on_launch",    g.openOnLaunch);
                 bool  oldCollapse = j.value("collapse_enabled",   false);
@@ -290,10 +278,7 @@ void LoadSettings() {
             } catch (...) {}
         }
 
-        /* 3. Previous version had no fancy mode — start in boring */
-        g.displayMode = DisplayMode_Boring;
-
-        /* 4. Write settings.json so next run is a normal load */
+        /* 3. Write settings.json so next run is a normal load */
         SaveSettings();
     }
 }

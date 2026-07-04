@@ -13,7 +13,6 @@
 
 enum RepeatType    { Repeat_Daily = 0, Repeat_Weekly = 1 };
 enum CompletedMode { CompletedMode_Colour = 0, CompletedMode_Hide = 1 };
-enum DisplayMode   { DisplayMode_Fancy = 0, DisplayMode_Boring = 1 };
 
 /* ── Constants ─────────────────────────────────────────────────────────────── */
 
@@ -24,10 +23,6 @@ extern const char* QA_ICON_ID;
 extern const char* QA_ICON_HOV_ID;
 extern const char* QA_ICON_FILENAME;
 
-static constexpr float MIN_WINDOW_DIM    = 200.f;
-static constexpr float DEFAULT_WINDOW_W  = 350.f;
-static constexpr float DEFAULT_WINDOW_H  = 410.f;
-static constexpr float SCROLL_ASPECT     = 591.f / 504.f; /* scroll image h/w ratio */
 static constexpr double RESET_CHECK_INTERVAL = 60.0;
 static constexpr double DIRTY_SAVE_DELAY     = 2.0;
 static constexpr double FILE_POLL_INTERVAL   = 1.0;
@@ -83,32 +78,12 @@ struct AppState {
     int                   cachedTotal = 0, cachedDone = 0;
     std::string           cachedConfigPath;
 
-    float                 winX = 0.f, winY = 0.f;
-    float                 winW = DEFAULT_WINDOW_W, winH = DEFAULT_WINDOW_H;
-    bool                  lockPosition      = false;
-    bool                  lockSize          = false;
-
-    int                   displayMode       = DisplayMode_Fancy;
     float                 boringX = 100.f, boringY = 100.f;
     float                 boringW = 400.f, boringH = 500.f;
 
     bool                  showQuickAccess   = true;
     bool                  openOnLaunch      = false;
-    bool                  usePieTheme       = true;  /* Boring mode: match Pie UI palette if broadcast */
-
-    /* Element positions — all in window content space (px from content origin) */
-    float                 posDragY      =   6.f;
-    float                 posDragH      =  29.f;
-    float                 posSearchX    =  90.f;
-    float                 posSearchY    =  40.f;
-    float                 posSearchW    = 189.f;
-    float                 posTaskX      =  53.f;
-    float                 posTaskW      = 258.f;
-    float                 posTaskY      =  97.f;
-    float                 posTaskBot    = 320.f;
-    float                 posAddX       =  83.f;
-    float                 posAddY       = 355.f;
-    bool                  layoutEditMode = false;
+    bool                  usePieTheme       = true;  /* match Pie UI palette if broadcast */
 
     /* Floating status pip — an always-visible icon, independent of the window */
     bool                  floatIconEnabled  = false;

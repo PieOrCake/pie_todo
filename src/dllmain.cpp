@@ -20,7 +20,6 @@
 
 /* ── UI Constants ──────────────────────────────────────────────────────────── */
 
-static const char* WINDOW_NAME        = "Pie's Awesome ToDo List";
 static const char* ICON_WINDOW_NAME   = "##PieTodoIcon";
 static const char* FLOAT_ICON_TEX_ID  = "PieTodo_float_icon_v2";
 
@@ -29,8 +28,6 @@ static constexpr float INPUT_WIDTH        = 132.f;
 static constexpr float COMBO_WIDTH        = 64.f;
 static constexpr float EDIT_FIELD_WIDTH   = 300.f;
 static constexpr float WRAP_WIDTH         = 280.f;
-static constexpr float DRAG_HANDLE_HEIGHT = 65.f;
-static constexpr float RESIZE_GRIP_SIZE   = 28.f;
 
 /* ── GW2-style ImGui theme (copied from tyrian_home_garden) ─────────────────── */
 
@@ -264,474 +261,7 @@ static void RenderTodoWindow() {
 
     if (!g.windowVisible) return;
 
-    /* Boring mode — entirely separate render path */
-    if (g.displayMode == DisplayMode_Boring) { RenderTodoWindowBoring(); return; }
-
-    /* Window setup */
-    ImGui::SetNextWindowPos(ImVec2(g.winX, g.winY), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(g.winW, g.winH), ImGuiCond_Always);
-    ImGuiWindowFlags wflags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBackground
-                            | ImGuiWindowFlags_NoResize   | ImGuiWindowFlags_NoScrollbar;
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(4.f, 4.f));
-    if (!ImGui::Begin(WINDOW_NAME, nullptr, wflags)) {
-        ImGui::PopStyleVar();
-        ImGui::End();
-        return;
-    }
-    ImGui::PopStyleVar();
-
-    /* ── Sepia colour theme ─────────────────────────────────────────────────── */
-    ImGui::PushStyleColor(ImGuiCol_Text,                 IM_COL32(40,  20,  10,  220));
-    ImGui::PushStyleColor(ImGuiCol_FrameBg,              IM_COL32(210, 180, 140, 120));
-    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered,       IM_COL32(210, 180, 140, 180));
-    ImGui::PushStyleColor(ImGuiCol_FrameBgActive,        IM_COL32(180, 150, 110, 200));
-    ImGui::PushStyleColor(ImGuiCol_CheckMark,            IM_COL32(80,  40,  10,  255));
-    ImGui::PushStyleColor(ImGuiCol_Button,               IM_COL32(180, 150, 110, 160));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered,        IM_COL32(180, 150, 110, 220));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive,         IM_COL32(140, 110, 80,  255));
-    ImGui::PushStyleColor(ImGuiCol_Header,               IM_COL32(180, 150, 110, 80));
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered,        IM_COL32(180, 150, 110, 140));
-    ImGui::PushStyleColor(ImGuiCol_HeaderActive,         IM_COL32(140, 110, 80,  180));
-    ImGui::PushStyleColor(ImGuiCol_Separator,            IM_COL32(120, 80,  40,  140));
-    ImGui::PushStyleColor(ImGuiCol_PopupBg,              IM_COL32(240, 220, 180, 240));
-    ImGui::PushStyleColor(ImGuiCol_ChildBg,              IM_COL32(0,   0,   0,   0));
-    ImGui::PushStyleColor(ImGuiCol_ScrollbarBg,          IM_COL32(0,   0,   0,   0));
-    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrab,        IM_COL32(120, 80,  40,  140));
-    ImGui::PushStyleColor(ImGuiCol_ScrollbarGrabHovered, IM_COL32(120, 80,  40,  220));
-    static constexpr int SEPIA_COLOUR_COUNT = 17;
-
-    ImGui::SetWindowFontScale((13.0f / ImGui::GetFontSize()) * (ImGui::GetWindowWidth() / DEFAULT_WINDOW_W));
-
-    /* ── Background image ───────────────────────────────────────────────────── */
-    {
-        ImVec2 wp  = ImGui::GetWindowPos();
-        ImVec2 wsz = ImGui::GetWindowSize();
-        Texture_t* bg = APIDefs->Textures_Get(FLOAT_ICON_TEX_ID);
-        if (bg && bg->Resource) {
-            ImDrawList* dl = ImGui::GetWindowDrawList();
-            dl->PushClipRect(wp, ImVec2(wp.x + wsz.x, wp.y + wsz.y), false);
-            dl->AddImage((ImTextureID)bg->Resource, wp, ImVec2(wp.x + wsz.x, wp.y + wsz.y));
-            dl->PopClipRect();
-        }
-    }
-
-    /* ── Whole-window drag (excludes interactive regions) ───────────────────── */
-    {
-        static bool s_winDragging = false;
-        ImVec2 wp    = ImGui::GetWindowPos();
-        float  ww    = ImGui::GetWindowWidth();
-        float  wh    = ImGui::GetWindowHeight();
-        float  pad   = 4.f;
-        ImVec2 mouse = ImGui::GetIO().MousePos;
-
-        bool overWindow = mouse.x >= wp.x && mouse.x < wp.x + ww
-                       && mouse.y >= wp.y && mouse.y < wp.y + wh;
-
-        /* Exclude interactive regions */
-        auto inRect = [&](float x0, float y0, float x1, float y1) {
-            return mouse.x >= x0 && mouse.x < x1 && mouse.y >= y0 && mouse.y < y1;
-        };
-        bool overInteractive =
-            inRect(wp.x + pad + g.posSearchX, wp.y + pad + g.posSearchY,
-                   wp.x + pad + g.posSearchX + g.posSearchW + 35.f, wp.y + pad + g.posSearchY + 26.f) ||
-            inRect(wp.x + pad + g.posTaskX,   wp.y + pad + g.posTaskY,
-                   wp.x + pad + g.posTaskX + g.posTaskW, wp.y + pad + g.posTaskBot) ||
-            inRect(wp.x + pad + g.posAddX,    wp.y + pad + g.posAddY,
-                   wp.x + pad + g.posAddX + 200.f, wp.y + pad + g.posAddY + 26.f);
-
-        if (overWindow && !overInteractive && ImGui::GetIO().MouseClicked[0] && !g.lockPosition)
-            s_winDragging = true;
-        if (!ImGui::GetIO().MouseDown[0])
-            s_winDragging = false;
-        if (s_winDragging && !g.lockPosition) {
-            ImVec2 delta = ImGui::GetIO().MouseDelta;
-            g.winX += delta.x;
-            g.winY += delta.y;
-            ImGui::SetWindowPos(ImVec2(g.winX, g.winY));
-            MarkDirty();
-        }
-        if (overWindow && !overInteractive && !g.lockPosition)
-            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
-    }
-
-    /* ── Search bar ─────────────────────────────────────────────────────────── */
-    {
-        char searchBuf[256];
-        strncpy(searchBuf, g.searchFilter.c_str(), sizeof(searchBuf) - 1);
-        searchBuf[sizeof(searchBuf) - 1] = '\0';
-        ImGui::SetCursorPos(ImVec2(g.posSearchX, g.posSearchY));
-        ImGui::SetNextItemWidth(g.posSearchW);
-        if (ImGui::InputTextWithHint("##search", "Search...", searchBuf, sizeof(searchBuf)))
-            g.searchFilter = searchBuf;
-        ImGui::SameLine();
-        if (ImGui::Button("X")) g.searchFilter.clear();
-    }
-
-    /* Use cached visible indices (rebuilt only on data/filter change) */
-    const std::vector<int>& visibleIndices = g.cachedVisibleIndices;
-
-    /* ── Task list ──────────────────────────────────────────────────────────── */
-    {
-        float taskW = g.posTaskW;
-        float taskH = g.posTaskBot - g.posTaskY;
-        ImGui::SetCursorPos(ImVec2(g.posTaskX, g.posTaskY));
-        ImGui::SetNextWindowBgAlpha(0.f);
-        if (ImGui::BeginChild("TaskList", ImVec2(taskW, taskH), false)) {
-        const float listWidth = ImGui::GetContentRegionAvail().x;
-        ImVec2 winPos = ImGui::GetWindowPos();
-        float winWidth = ImGui::GetWindowWidth();
-        /* Reuse persistent row rect vectors instead of allocating every frame */
-        g.rowMin.resize(visibleIndices.size());
-        g.rowMax.resize(visibleIndices.size());
-        const float repeatColWidth = ImGui::CalcTextSize("W").x + ImGui::GetStyle().ItemSpacing.x * 2.f;
-
-        for (size_t vi = 0; vi < visibleIndices.size(); vi++) {
-            int idx = visibleIndices[vi];
-            TodoItem& item = g.todos[idx];
-            ImGui::PushID(item.uid.c_str());
-
-            /* Record row start Y for background rect */
-            ImVec2 rowStartPos = ImGui::GetCursorScreenPos();
-
-            /* Alternating row background (zebra stripe on odd rows) */
-            if (vi % 2 == 1) {
-                ImVec2 zMin = ImVec2(winPos.x, rowStartPos.y);
-                ImVec2 zMax = ImVec2(winPos.x + winWidth, rowStartPos.y + ImGui::GetFrameHeightWithSpacing());
-                ImGui::GetWindowDrawList()->AddRectFilled(zMin, zMax, IM_COL32(80, 40, 10, 20));
-            }
-
-            /* Full-row drag source (invisible selectable spanning available width) */
-            ImGui::Selectable("##dragrow", false, ImGuiSelectableFlags_AllowItemOverlap);
-            if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
-                g.dragSourceIdx = idx;
-                ImGui::SetDragDropPayload("PIE_TODO_ROW", &idx, sizeof(int));
-                ImGui::TextUnformatted("Move task");
-                ImGui::EndDragDropSource();
-            }
-            ImGui::SameLine(0, 0);
-
-            /* Checkbox */
-            bool completed = item.completed;
-            if (ImGui::Checkbox("##done", &completed)) {
-                item.completed = completed;
-                MarkDirty();
-            }
-            ImGui::SameLine(0, ROW_PADDING);
-
-            /* Task text */
-            ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted(item.text.c_str());
-
-            /* Repeat label right-aligned */
-            ImGui::SameLine(winWidth - repeatColWidth);
-            ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted(item.repeat == Repeat_Weekly ? "W" : "D");
-
-            /* Draw row background highlight for completed tasks (full row height) */
-            if (completed) {
-                ImVec2 rMin = ImVec2(winPos.x, rowStartPos.y);
-                ImVec2 rMax = ImVec2(winPos.x + winWidth, rowStartPos.y + ImGui::GetFrameHeightWithSpacing());
-                ImGui::GetWindowDrawList()->AddRectFilled(rMin, rMax, IM_COL32(80, 40, 10, 50));
-            }
-
-            /* Store full row rect for drag-drop and right-click hit test */
-            ImVec2 rEnd = ImGui::GetItemRectMax();
-            g.rowMin[vi] = ImVec2(winPos.x, rowStartPos.y);
-            g.rowMax[vi] = ImVec2(winPos.x + listWidth, rEnd.y);
-
-            ImGui::PopID();
-        }
-
-        /* Drop target indicator and drop handling */
-        if (g.dragSourceIdx >= 0) {
-            ImVec2 mouse = ImGui::GetMousePos();
-            int dropVisIdx = -1;
-            bool dropAfter = false;
-
-            /* Find which row the cursor is over and whether it's in the top or bottom half */
-            for (size_t vi = 0; vi < visibleIndices.size(); vi++) {
-                if (mouse.y >= g.rowMin[vi].y && mouse.y < g.rowMax[vi].y) {
-                    float midY = (g.rowMin[vi].y + g.rowMax[vi].y) * 0.5f;
-                    dropVisIdx = (int)vi;
-                    dropAfter = (mouse.y >= midY);
-                    break;
-                }
-            }
-            /* If cursor is below all rows, drop after the last row */
-            if (dropVisIdx < 0 && !visibleIndices.empty() && mouse.y >= g.rowMax.back().y) {
-                dropVisIdx = (int)visibleIndices.size() - 1;
-                dropAfter = true;
-            }
-
-            /* Draw a very obvious drop indicator: thick line + arrow markers */
-            if (dropVisIdx >= 0) {
-                float lineY = dropAfter ? g.rowMax[dropVisIdx].y : g.rowMin[dropVisIdx].y;
-                float x1 = winPos.x + ROW_PADDING;
-                float x2 = winPos.x + winWidth - ROW_PADDING;
-                ImU32 lineCol = IM_COL32(255, 200, 0, 255);
-                ImDrawList* fg = ImGui::GetForegroundDrawList();
-                fg->AddLine(ImVec2(x1, lineY), ImVec2(x2, lineY), lineCol, 3.0f);
-                /* Left arrow */
-                fg->AddTriangleFilled(
-                    ImVec2(x1, lineY),
-                    ImVec2(x1 - 6.f, lineY - 5.f),
-                    ImVec2(x1 - 6.f, lineY + 5.f), lineCol);
-                /* Right arrow */
-                fg->AddTriangleFilled(
-                    ImVec2(x2, lineY),
-                    ImVec2(x2 + 6.f, lineY - 5.f),
-                    ImVec2(x2 + 6.f, lineY + 5.f), lineCol);
-            }
-
-            /* Perform the move on mouse release */
-            if (ImGui::IsMouseReleased(0)) {
-                if (dropVisIdx >= 0) {
-                    int targetIdx = visibleIndices[dropVisIdx];
-                    if (dropAfter && targetIdx < (int)g.todos.size() - 1)
-                        targetIdx++;
-                    if (g.dragSourceIdx != targetIdx)
-                        MoveTodo(g.dragSourceIdx, targetIdx);
-                }
-                g.dragSourceIdx = -1;
-            }
-        }
-
-        g.rowVisibleIndices = visibleIndices;
-        }
-        ImGui::EndChild();
-    }
-
-    /* Right-click on a row opens context menu (after EndChild so popup isn't clipped) */
-    if (ImGui::IsMouseClicked(1) && !g.rowMin.empty()) {
-        ImVec2 mouse = ImGui::GetMousePos();
-        for (size_t vi = 0; vi < g.rowMin.size(); vi++) {
-            if (mouse.x >= g.rowMin[vi].x && mouse.x < g.rowMax[vi].x &&
-                mouse.y >= g.rowMin[vi].y && mouse.y < g.rowMax[vi].y) {
-                g.contextMenuUid = g.todos[g.rowVisibleIndices[vi]].uid;
-                ImGui::SetNextWindowPos(mouse);
-                ImGui::OpenPopup("TaskContextMenu");
-                break;
-            }
-        }
-    }
-
-    if (ImGui::BeginPopup("TaskContextMenu")) {
-        if (ImGui::Selectable("Edit")) {
-            g.editingUid = g.contextMenuUid;
-            int i = IndexForUid(g.contextMenuUid);
-            if (i >= 0) {
-                g.editText   = g.todos[i].text;
-                g.editRepeat = g.todos[i].repeat;
-            }
-            g.editPopupPending = true;
-            ImGui::CloseCurrentPopup();
-        }
-        if (ImGui::Selectable("Delete")) {
-            g.deleteConfirmUid   = g.contextMenuUid;
-            g.deletePopupPending = true;
-            ImGui::CloseCurrentPopup();
-        }
-        ImGui::EndPopup();
-    }
-
-    /* Edit popup */
-    if (g.editPopupPending) {
-        ImGui::OpenPopup("Edit Todo");
-        g.editPopupPending = false;
-    }
-    CenterPopupOnWindow();
-    if (ImGui::BeginPopupModal("Edit Todo", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        char editBuf[512];
-        strncpy(editBuf, g.editText.c_str(), sizeof(editBuf) - 1);
-        editBuf[sizeof(editBuf) - 1] = '\0';
-        ImGui::SetNextItemWidth(EDIT_FIELD_WIDTH);
-        bool enter = ImGui::InputText("Task", editBuf, sizeof(editBuf), ImGuiInputTextFlags_EnterReturnsTrue);
-        g.editText = editBuf;
-        const char* editRepeatLabels[] = { "Daily", "Weekly" };
-        ImGui::Combo("Repeat", (int*)&g.editRepeat, editRepeatLabels, 2);
-        if (ImGui::Button("OK") || enter) {
-            int i = IndexForUid(g.editingUid);
-            if (i >= 0) {
-                std::string trimmed = TrimWhitespace(g.editText);
-                if (!trimmed.empty())
-                    g.todos[i].text = std::move(trimmed);
-                g.todos[i].repeat = g.editRepeat;
-                MarkDirty();
-            }
-            g.editingUid.clear();
-            ImGui::CloseCurrentPopup();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Cancel")) {
-            g.editingUid.clear();
-            ImGui::CloseCurrentPopup();
-        }
-        ImGui::EndPopup();
-    }
-
-    /* Delete confirmation popup */
-    if (g.deletePopupPending) {
-        ImGui::OpenPopup("Delete Todo");
-        g.deletePopupPending = false;
-    }
-    CenterPopupOnWindow();
-    if (ImGui::BeginPopupModal("Delete Todo", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        int idx = IndexForUid(g.deleteConfirmUid);
-        if (idx >= 0) {
-            ImGui::Text("Delete this task?");
-            ImGui::Text("Task: ");
-            ImGui::SameLine();
-            ImGui::PushTextWrapPos(ImGui::GetCursorPos().x + WRAP_WIDTH);
-            ImGui::TextUnformatted(g.todos[idx].text.c_str());
-            ImGui::PopTextWrapPos();
-            if (ImGui::Button("Yes")) {
-                g.todos.erase(g.todos.begin() + idx);
-                MarkDirty();
-                g.deleteConfirmUid.clear();
-                ImGui::CloseCurrentPopup();
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("No")) {
-                g.deleteConfirmUid.clear();
-                ImGui::CloseCurrentPopup();
-            }
-        } else {
-            g.deleteConfirmUid.clear();
-            ImGui::CloseCurrentPopup();
-        }
-        ImGui::EndPopup();
-    }
-
-    /* ── Add task row ───────────────────────────────────────────────────────── */
-    {
-        ImGui::SetCursorPos(ImVec2(g.posAddX, g.posAddY));
-        char newBuf[512];
-        strncpy(newBuf, g.newTaskText.c_str(), sizeof(newBuf) - 1);
-        newBuf[sizeof(newBuf) - 1] = '\0';
-        ImGui::SetNextItemWidth(INPUT_WIDTH);
-        if (ImGui::InputTextWithHint("##newtask", "New task...", newBuf, sizeof(newBuf),
-                                     ImGuiInputTextFlags_EnterReturnsTrue)) {
-            g.newTaskText = newBuf;
-            AddNewTodo();
-        } else {
-            g.newTaskText = newBuf;
-        }
-        ImGui::SameLine();
-        const char* repeatLabels[] = { "Daily", "Weekly" };
-        ImGui::SetNextItemWidth(COMBO_WIDTH);
-        ImGui::Combo("##repeat", (int*)&g.newTaskRepeat, repeatLabels, 2);
-        ImGui::SameLine();
-        if (ImGui::Button("+")) AddNewTodo();
-    }
-
-
-    /* Auto-hide timer — hide the main window after the mouse leaves it. */
-    if (g.autoHideEnabled) {
-        bool anyHovered = ImGui::IsWindowHovered(
-            ImGuiHoveredFlags_ChildWindows |
-            ImGuiHoveredFlags_AllowWhenBlockedByActiveItem |
-            ImGuiHoveredFlags_AllowWhenBlockedByPopup);
-        bool popupOpen = ImGui::IsPopupOpen("TaskContextMenu")
-            || ImGui::IsPopupOpen("Edit Todo")
-            || ImGui::IsPopupOpen("Delete Todo");
-        if (anyHovered || popupOpen)
-            g.lastHoverTime = now;
-        else if (g.lastHoverTime > 0.0 && (now - g.lastHoverTime) >= (double)g.autoHideDelaySec)
-            g.windowVisible = false;
-    }
-
-    /* W/H are always set via SetNextWindowSize(Always) so they stay in sync.
-       X/Y are managed by SetNextWindowPos(Always) + drag handler above. */
-
-    /* ── Layout edit mode overlays ──────────────────────────────────────────── */
-    if (g.layoutEditMode) {
-        static int  s_dragHandle = -1;
-        static bool s_dragResize = false;
-        ImDrawList* fdl = ImGui::GetForegroundDrawList();
-        ImVec2 wpos = ImGui::GetWindowPos();
-        float  winW = ImGui::GetWindowWidth();
-        float  winH = ImGui::GetWindowHeight();
-        float  pad  = 4.f;
-        const float RC = 10.f; /* resize corner hit size */
-
-        /* Window boundary */
-        fdl->AddRect(wpos, ImVec2(wpos.x + winW, wpos.y + winH),
-                     IM_COL32(255, 80, 80, 200), 0.f, 0, 2.f);
-
-        struct Handle {
-            const char* label;
-            ImU32       col;
-            float       sx, sy, sw, sh;
-            float*      px;
-            float*      py;
-            float*      pw;
-            float*      ph;
-        } handles[] = {
-            { "DRAG",   IM_COL32(60, 120, 255, 120),
-              wpos.x,             wpos.y + pad + g.posDragY,     winW,              g.posDragH,
-              nullptr,            &g.posDragY,   nullptr,          &g.posDragH },
-            { "SEARCH", IM_COL32(50, 200, 80,  120),
-              wpos.x + pad + g.posSearchX, wpos.y + pad + g.posSearchY, g.posSearchW + 30.f, 22.f,
-              &g.posSearchX,      &g.posSearchY, &g.posSearchW,    nullptr },
-            { "TASKS",  IM_COL32(220, 160, 40, 100),
-              wpos.x + pad + g.posTaskX,   wpos.y + pad + g.posTaskY,   g.posTaskW, g.posTaskBot - g.posTaskY,
-              &g.posTaskX,        &g.posTaskY,   &g.posTaskW,      &g.posTaskBot },
-            { "ADD",    IM_COL32(180, 60, 220, 120),
-              wpos.x + pad + g.posAddX,    wpos.y + pad + g.posAddY,    160.f, 22.f,
-              &g.posAddX,         &g.posAddY,    nullptr,          nullptr },
-        };
-
-        ImVec2 mouse = ImGui::GetIO().MousePos;
-        for (int i = 0; i < 4; i++) {
-            Handle& h = handles[i];
-            bool over = mouse.x >= h.sx && mouse.x < h.sx + h.sw
-                     && mouse.y >= h.sy && mouse.y < h.sy + h.sh;
-            if (over && ImGui::GetIO().MouseClicked[0] && s_dragHandle < 0) {
-                s_dragHandle = i;
-                bool inCorner = (h.pw || h.ph)
-                             && mouse.x >= h.sx + h.sw - RC
-                             && mouse.y >= h.sy + h.sh - RC;
-                s_dragResize = inCorner;
-            }
-            if (s_dragHandle == i) {
-                if (ImGui::GetIO().MouseDown[0]) {
-                    ImVec2 d = ImGui::GetIO().MouseDelta;
-                    if (s_dragResize) {
-                        if (h.pw) *h.pw += d.x;
-                        if (h.ph) *h.ph += d.y;
-                    } else {
-                        if (h.px) *h.px += d.x;
-                        if (h.py) *h.py += d.y;
-                        auto fclamp = [](float v, float lo, float hi) { return v < lo ? lo : v > hi ? hi : v; };
-                        if (h.px) *h.px = fclamp(*h.px, 0.f, winW - 4.f);
-                        if (h.py) *h.py = fclamp(*h.py, 0.f, winH - 4.f);
-                    }
-                    MarkDirty();
-                } else {
-                    s_dragHandle = -1;
-                }
-            }
-            bool active = (s_dragHandle == i);
-            ImU32 fill = active ? IM_COL32(255,255,255,60) : h.col;
-            fdl->AddRectFilled(ImVec2(h.sx, h.sy), ImVec2(h.sx+h.sw, h.sy+h.sh), fill, 3.f);
-            fdl->AddRect(ImVec2(h.sx, h.sy), ImVec2(h.sx+h.sw, h.sy+h.sh),
-                         IM_COL32(255,255,255,200), 3.f, 0, 1.5f);
-            fdl->AddText(ImVec2(h.sx+4.f, h.sy+4.f), IM_COL32(255,255,255,255), h.label);
-            if (h.pw || h.ph) {
-                ImU32 cornerCol = (active && s_dragResize)
-                    ? IM_COL32(255, 255, 100, 240)
-                    : IM_COL32(255, 255, 100, 160);
-                fdl->AddRectFilled(
-                    ImVec2(h.sx + h.sw - RC, h.sy + h.sh - RC),
-                    ImVec2(h.sx + h.sw,      h.sy + h.sh),
-                    cornerCol, 2.f);
-            }
-        }
-    }
-
-    ImGui::SetWindowFontScale(1.0f);
-    ImGui::PopStyleColor(SEPIA_COLOUR_COUNT);
-    ImGui::End();
+    RenderTodoWindowBoring();
 }
 
 /* ── Boring mode window ─────────────────────────────────────────────────────── */
@@ -1032,35 +562,12 @@ static void RenderOptions() {
         ImGui::SetTooltip("Show completed tasks with a green row (Colour) or hide them (Hide).");
 
     ImGui::Spacing();
-    ImGui::Text("Display style:");
-    ImGui::SameLine();
-    if (ImGui::RadioButton("Fancy", g.displayMode == DisplayMode_Fancy)) {
-        g.displayMode = DisplayMode_Fancy; MarkDirty();
-    }
-    ImGui::SameLine();
-    if (ImGui::RadioButton("Boring", g.displayMode == DisplayMode_Boring)) {
-        g.displayMode = DisplayMode_Boring; MarkDirty();
-    }
-    ImGui::SameLine();
-    ImGui::TextDisabled("(?)");
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Fancy: scroll artwork, fixed size.\nBoring: plain resizable window.");
-
-    ImGui::Spacing();
     if (ImGui::Checkbox("Use Pie UI theme (if available)", &g.usePieTheme))
         MarkDirty();
     ImGui::SameLine();
     ImGui::TextDisabled("(?)");
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Match Pie UI's colours in Boring mode when the Pie UI addon is running.\nHas no effect on Fancy mode.");
-
-    ImGui::Spacing();
-    if (ImGui::Checkbox("Lock window position", &g.lockPosition))
-        MarkDirty();
-    ImGui::SameLine();
-    ImGui::TextDisabled("(?)");
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Prevent the window from being dragged.");
+        ImGui::SetTooltip("Match the list's colours to Pie UI when that addon is running.");
 
     ImGui::Spacing();
     if (ImGui::Checkbox("Show Quick Access icon", &g.showQuickAccess)) {
@@ -1083,27 +590,6 @@ static void RenderOptions() {
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Automatically show the window when the game starts.");
 
-    /* Layout edit mode — disabled; layout is hard-coded. Preserved for future reference.
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-    if (ImGui::Checkbox("Layout edit mode", &g.layoutEditMode)) MarkDirty();
-    ImGui::SameLine(); ImGui::TextDisabled("(?)");
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Drag the coloured overlays on the window to reposition each element. Yellow corner = resize.");
-    ImGui::SameLine();
-    if (ImGui::SmallButton("Reset layout")) {
-        g.posDragY=6.f; g.posDragH=29.f;
-        g.posSearchX=90.f; g.posSearchY=40.f; g.posSearchW=189.f;
-        g.posTaskX=53.f; g.posTaskW=258.f; g.posTaskY=97.f; g.posTaskBot=320.f;
-        g.posAddX=83.f; g.posAddY=355.f;
-        g.winW=DEFAULT_WINDOW_W; g.winH=DEFAULT_WINDOW_H; MarkDirty();
-    }
-    if (g.layoutEditMode) {
-        // Win X/Y/W/H sliders, DH/SR/TL/AR sliders ...
-    }
-    */
-
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
@@ -1116,6 +602,7 @@ static void RenderOptions() {
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("A small always-visible icon showing your daily/weekly progress.\nClick or hover it to open the list.");
     if (g.floatIconEnabled) {
+        ImGui::Indent();
         if (ImGui::Checkbox("Lock icon position", &g.floatIconLocked))
             MarkDirty();
         ImGui::SameLine();
@@ -1134,6 +621,7 @@ static void RenderOptions() {
             ImGui::SameLine();
             if (ImGui::RadioButton("Click", g.expandOnClick))  { g.expandOnClick = true;  MarkDirty(); }
         }
+        ImGui::Unindent();
     }
 
     ImGui::Spacing();
@@ -1146,12 +634,14 @@ static void RenderOptions() {
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Hides the list a moment after the mouse leaves it.\nBring it back with the floating icon, the Quick Access icon, or the hotkey.");
     if (g.autoHideEnabled) {
+        ImGui::Indent();
         ImGui::SetNextItemWidth(100.f);
         if (ImGui::InputFloat("Hide after (seconds)", &g.autoHideDelaySec, 0.5f, 1.0f, "%.1f")) {
             if (g.autoHideDelaySec < 0.5f)  g.autoHideDelaySec = 0.5f;
             if (g.autoHideDelaySec > 30.0f) g.autoHideDelaySec = 30.0f;
             MarkDirty();
         }
+        ImGui::Unindent();
     }
 }
 
